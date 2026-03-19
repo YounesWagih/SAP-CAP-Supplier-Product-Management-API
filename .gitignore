@@ -1,0 +1,47 @@
+# Dependencies
+node_modules/
+package-lock.json
+
+# Build outputs
+gen/
+dist/
+build/
+*.js
+*.map
+
+# Database
+*.sqlite
+*.sqlite3
+db.sqlite
+
+# CDS
+.cdsrc.json
+!template-.cdsrc.json
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Logs
+*.log
+logs/
+
+# Environment
+.env
+.env.local
+.env.*.local
+
+# Test coverage
+coverage/
+
+# Temp files
+tmp/
+temp/
+*.tmp

@@ -1,0 +1,29 @@
+{
+  "name": "cap-task",
+  "version": "1.0.0",
+  "description": "SAP CAP project with Node.js/TypeScript and SQLite",
+  "repository": "",
+  "license": "ISC",
+  "scripts": {
+    "start": "cds serve",
+    "watch": "cds watch",
+    "build": "cds build",
+    "deploy": "cds deploy"
+  },
+  "dependencies": {
+    "@sap/cds": "^8.0.0",
+    "sqlite3": "^5.1.7"
+  },
+  "devDependencies": {
+    "@sap/cds-dk": "^8.0.0",
+    "@types/node": "^25.5.0",
+    "typescript": "^5.3.0"
+  },
+  "cds": {
+    "requires": {
+      "db": {
+        "kind": "sqlite"
+      }
+    }
+  }
+}
