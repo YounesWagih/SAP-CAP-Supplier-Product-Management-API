@@ -204,6 +204,90 @@ describe("Entity Validations", () => {
     });
 });
 
+describe("Supplier ID Validation", () => {
+    const validateSupplierId = async (service, supplierId) => {
+        const errors = [];
+
+        if (supplierId === undefined) {
+            return true; // Optional field
+        }
+
+        // Simulate checking if supplier exists in database
+        // In real tests, this would use the service.exists() method
+        const validSupplierIds = [
+            19558439, 19558440, 19558441, 19558442, 19558443, 19558444,
+            19558445, 19558446, 19558447, 19558448,
+        ];
+
+        if (!validSupplierIds.includes(supplierId)) {
+            errors.push(`Supplier with ID ${supplierId} does not exist`);
+        }
+
+        if (errors.length > 0) {
+            throw new Error(errors.join("; "));
+        }
+
+        return true;
+    };
+
+    test("should accept valid supplier ID", async () => {
+        // Mock service with exists method
+        const mockService = {
+            entities: { Suppliers: {} },
+            exists: async (entity, id) => {
+                const validIds = [
+                    19558439, 19558440, 19558441, 19558442, 19558443, 19558444,
+                    19558445, 19558446, 19558447, 19558448,
+                ];
+                return validIds.includes(id);
+            },
+        };
+
+        // Test with valid supplier IDs from the database
+        expect(await validateSupplierId(mockService, 19558439)).toBe(true);
+        expect(await validateSupplierId(mockService, 19558440)).toBe(true);
+        expect(await validateSupplierId(mockService, 19558448)).toBe(true);
+    });
+
+    test("should reject invalid supplier ID", async () => {
+        const mockService = {
+            entities: { Suppliers: {} },
+            exists: async (entity, id) => {
+                const validIds = [
+                    19558439, 19558440, 19558441, 19558442, 19558443, 19558444,
+                    19558445, 19558446, 19558447, 19558448,
+                ];
+                return validIds.includes(id);
+            },
+        };
+
+        // Test with invalid supplier IDs
+        await expect(validateSupplierId(mockService, 99999)).rejects.toThrow(
+            "Supplier with ID 99999 does not exist",
+        );
+        await expect(validateSupplierId(mockService, 1)).rejects.toThrow(
+            "Supplier with ID 1 does not exist",
+        );
+        await expect(validateSupplierId(mockService, 0)).rejects.toThrow(
+            "Supplier with ID 0 does not exist",
+        );
+    });
+
+    test("should allow undefined supplier ID (optional field)", async () => {
+        // When supplier ID is undefined or null, it should be treated as optional (no validation)
+        // The validateSupplierId function should return true for these cases
+        const mockService = {
+            entities: { Suppliers: {} },
+            exists: async () => false,
+        };
+
+        // Test with undefined (should pass as it's optional)
+        expect(await validateSupplierId(mockService, undefined)).toBe(true);
+        // Note: null would be treated as a value, so it would fail validation
+        // In practice, the handler checks "if (supplierId)" which handles null/undefined
+    });
+});
+
 describe("submitReview Action Validation", () => {
     const validateSubmitReviewInput = (input) => {
         const errors = [];

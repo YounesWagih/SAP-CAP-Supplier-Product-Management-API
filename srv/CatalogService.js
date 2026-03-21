@@ -46,6 +46,28 @@ function validateRating(rating, fieldName = "Rating") {
 }
 
 /**
+ * Validate that supplier_id exists in the database
+ * @param {Object} service - The CDS service instance
+ * @param {number} supplierId - The supplier ID to validate
+ * @throws {Error} If supplier does not exist
+ */
+async function validateSupplierId(service, supplierId) {
+    if (supplierId !== undefined) {
+        const { Suppliers } = service.entities;
+        const supplierExists = await service.exists(Suppliers, supplierId);
+        if (!supplierExists) {
+            console.log(
+                `[CatalogService] REJECTING: supplier with ID ${supplierId} does not exist`,
+            );
+            throw new Error(`Supplier with ID ${supplierId} does not exist`);
+        }
+        console.log(
+            `[CatalogService] Supplier validation passed: supplier ${supplierId} exists`,
+        );
+    }
+}
+
+/**
  * Fetch products from FakeStoreAPI
  * @returns {Promise<Array>} Array of products
  */
@@ -59,7 +81,7 @@ async function fetchFakeStoreProducts() {
             throw new Error(`HTTP error! status: ${response.status}`);
         }
         const products = await response.json();
-        
+
         return products;
     } catch (error) {
         throw new Error(`Failed to fetch from FakeStoreAPI: ${error.message}`);
@@ -103,6 +125,15 @@ module.exports = cds.service.impl(async function (service) {
         for (const product of products) {
             // === PRICE VALIDATION ===
             validatePrice(product.price);
+
+            // === SUPPLIER ID VALIDATION ===
+            // Extract supplier ID from association (could be supplier_ID or supplier.ID)
+            const supplierId =
+                product.supplier_ID ||
+                (product.supplier && product.supplier.ID);
+            if (supplierId) {
+                await validateSupplierId(service, supplierId);
+            }
 
             // === SUPPLIER RATING VALIDATION ===
             if (product.supplier) {
@@ -150,6 +181,14 @@ module.exports = cds.service.impl(async function (service) {
 
         // === PRICE VALIDATION ===
         validatePrice(data.price);
+
+        // === SUPPLIER ID VALIDATION ===
+        // Extract supplier ID from association (could be supplier_ID or supplier.ID)
+        const supplierId =
+            data.supplier_ID || (data.supplier && data.supplier.ID);
+        if (supplierId) {
+            await validateSupplierId(service, supplierId);
+        }
 
         // === SUPPLIER RATING VALIDATION ===
         if (data.supplier) {
