@@ -16,13 +16,14 @@ const cds = require("@sap/cds");
  * @throws {Error} If price is not greater than 0
  */
 function validatePrice(price) {
-    if (price !== undefined) {
-        if (price <= 0) {
-            console.log(`[CatalogService] REJECTING: price ${price} <= 0`);
-            throw new Error("Price must be greater than 0");
-        }
-        console.log(`[CatalogService] Price validation passed: ${price}`);
+    if (price === undefined || price === null) {
+        throw new Error("Price is required");
     }
+    if (price <= 0) {
+        console.log(`[CatalogService] REJECTING: price ${price} <= 0`);
+        throw new Error("Price must be greater than 0");
+    }
+    console.log(`[CatalogService] Price validation passed: ${price}`);
 }
 
 /**
