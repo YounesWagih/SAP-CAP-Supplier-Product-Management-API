@@ -193,12 +193,8 @@ module.exports = cds.service.impl(async function (service) {
             "[CatalogService] BEFORE CREATE ProductReviews - Handler invoked!",
         );
 
-        const data = req.data;
-        const reviews = Array.isArray(data) ? data : [data];
-
-        for (const review of reviews) {
-            validateRating(review.rating, "Rating");
-        }
+        const review = req.data;
+        validateRating(review.rating, "Rating");
     });
 
     // beforeUpdate handler for ProductReviews - Rating validation
@@ -207,9 +203,8 @@ module.exports = cds.service.impl(async function (service) {
             "[CatalogService] BEFORE UPDATE ProductReviews - Handler invoked!",
         );
 
-        const data = req.data;
-
-        validateRating(data.rating, "Rating");
+        const review = req.data;
+        validateRating(review.rating, "Rating");
     });
 
     // =========================================================================
@@ -221,13 +216,8 @@ module.exports = cds.service.impl(async function (service) {
         console.log(
             "[CatalogService] BEFORE CREATE Suppliers - Handler invoked!",
         );
-
-        const data = req.data;
-        const suppliers = Array.isArray(data) ? data : [data];
-
-        for (const supplier of suppliers) {
-            validateRating(supplier.rating, "Supplier rating");
-        }
+        const supplier = req.data;
+        validateRating(supplier.rating, "Supplier rating");
     });
 
     // beforeUpdate handler for Suppliers - Rating validation
@@ -236,9 +226,8 @@ module.exports = cds.service.impl(async function (service) {
             "[CatalogService] BEFORE UPDATE Suppliers - Handler invoked!",
         );
 
-        const data = req.data;
-
-        validateRating(data.rating, "Supplier rating");
+        const supplier = req.data;
+        validateRating(supplier.rating, "Supplier rating");
     });
 
     // =========================================================================
