@@ -134,10 +134,8 @@ module.exports = cds.service.impl(async function (service) {
             if (supplierId) {
                 await validateSupplierId(service, supplierId);
             }
-
-            // === SUPPLIER RATING VALIDATION ===
-            if (product.supplier) {
-                validateRating(product.supplier.rating, "Supplier rating");
+            else {
+                throw new Error(`Supplier ID not found`);
             }
 
             // === EXTERNAL API INTEGRATION ===
@@ -146,7 +144,7 @@ module.exports = cds.service.impl(async function (service) {
                     `[CatalogService] Fetching external rating for category: ${product.category}`,
                 );
 
-                // Find a product in the same category (using cached results)
+                // Find a product in the same category
                 const matchingProduct = fakeStoreProducts.find(
                     (p) =>
                         p.category.toLowerCase() ===
