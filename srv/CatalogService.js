@@ -101,11 +101,9 @@ module.exports = cds.service.impl(async function (service) {
             "[CatalogService] BEFORE CREATE Products - Handler invoked!",
         );
 
-        const data = req.data;
-        const products = Array.isArray(data) ? data : [data];
+        const product = req.data;
 
         // === EXTERNAL API INTEGRATION ===
-        // Move API call outside the loop to avoid N+1 API calls
         let fakeStoreProducts = null;
         try {
             fakeStoreProducts = await fetchFakeStoreProducts();
@@ -122,50 +120,45 @@ module.exports = cds.service.impl(async function (service) {
             );
         }
 
-        for (const product of products) {
-            // === PRICE VALIDATION ===
-            validatePrice(product.price);
+        // === PRICE VALIDATION ===
+        validatePrice(product.price);
 
-            // === SUPPLIER ID VALIDATION ===
-            // Extract supplier ID from association (could be supplier_ID or supplier.ID)
-            const supplierId =
-                product.supplier_ID ||
-                (product.supplier && product.supplier.ID);
-            if (supplierId) {
-                await validateSupplierId(service, supplierId);
-            }
-            else {
-                throw new Error(`Supplier ID not found`);
-            }
+        // === SUPPLIER ID VALIDATION ===
+        // Extract supplier ID from association (could be supplier_ID or supplier.ID)
+        const supplierId =
+            product.supplier_ID || (product.supplier && product.supplier.ID);
+        if (supplierId) {
+            await validateSupplierId(service, supplierId);
+        } else {
+            throw new Error(`Supplier ID not found`);
+        }
 
-            // === EXTERNAL API INTEGRATION ===
-            if (product.category && fakeStoreProducts) {
+        // === EXTERNAL API INTEGRATION ===
+        if (product.category && fakeStoreProducts) {
+            console.log(
+                `[CatalogService] Fetching external rating for category: ${product.category}`,
+            );
+
+            // Find a product in the same category
+            const matchingProduct = fakeStoreProducts.find(
+                (p) =>
+                    p.category.toLowerCase() === product.category.toLowerCase(),
+            );
+
+            if (matchingProduct) {
+                product.externalRating = matchingProduct.rating.rate;
                 console.log(
-                    `[CatalogService] Fetching external rating for category: ${product.category}`,
+                    `[CatalogService] Set externalRating to ${matchingProduct.rating.rate} from FakeStoreAPI`,
                 );
-
-                // Find a product in the same category
-                const matchingProduct = fakeStoreProducts.find(
-                    (p) =>
-                        p.category.toLowerCase() ===
-                        product.category.toLowerCase(),
-                );
-
-                if (matchingProduct) {
-                    product.externalRating = matchingProduct.rating.rate;
-                    console.log(
-                        `[CatalogService] Set externalRating to ${matchingProduct.rating.rate} from FakeStoreAPI`,
-                    );
-                } else {
-                    console.log(
-                        `[CatalogService] No matching product found for category: ${product.category}`,
-                    );
-                }
-            } else if (!product.category) {
+            } else {
                 console.log(
-                    "[CatalogService] No category provided, skipping external rating fetch",
+                    `[CatalogService] No matching product found for category: ${product.category}`,
                 );
             }
+        } else if (!product.category) {
+            console.log(
+                "[CatalogService] No category provided, skipping external rating fetch",
+            );
         }
     });
 
@@ -186,11 +179,6 @@ module.exports = cds.service.impl(async function (service) {
             data.supplier_ID || (data.supplier && data.supplier.ID);
         if (supplierId) {
             await validateSupplierId(service, supplierId);
-        }
-
-        // === SUPPLIER RATING VALIDATION ===
-        if (data.supplier) {
-            validateRating(data.supplier.rating, "Supplier rating");
         }
     });
 
