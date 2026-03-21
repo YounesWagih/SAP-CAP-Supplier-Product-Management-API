@@ -1,47 +1,36 @@
 # Dependencies
 node_modules/
-package-lock.json
 
-# Build outputs
+# Build output
 gen/
 dist/
 build/
-*.js
-*.map
 
-# Database
-*.sqlite
-*.sqlite3
-db.sqlite
-
-# CDS
-.cdsrc.json
-!template-.cdsrc.json
+# CDS specific
+*.cds.gen.*
+.db/
 
 # IDE
 .vscode/
 .idea/
 *.swp
 *.swo
-*~
-
-# OS
-.DS_Store
-Thumbs.db
 
 # Logs
 *.log
-logs/
+npm-debug.log*
 
 # Environment
 .env
 .env.local
 .env.*.local
 
-# Test coverage
+# OS
+.DS_Store
+Thumbs.db
+
+# Testing
 coverage/
 
-# Temp files
-tmp/
-temp/
-*.tmp
+# TypeScript
+*.tsbuildinfo
