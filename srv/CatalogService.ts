@@ -6,7 +6,14 @@
 
 // @ts-ignore - SAP CAP types
 import cds from "@sap/cds";
-import type { ProductReview } from "../types/entities";
+import type {
+    ProductReview,
+    CreateProductInput,
+    UpdateProductInput,
+    CreateProductReviewInput,
+    UpdateProductReviewInput,
+    UpdateSupplierInput,
+} from "../types/entities";
 import type { FakeStoreProduct } from "../types/external";
 
 // Use require for CommonJS compatibility
@@ -170,37 +177,6 @@ async function fetchFakeStoreProducts(): Promise<FakeStoreProduct[]> {
     }
 }
 
-interface ProductData {
-    ID?: number;
-    name: string;
-    price: number;
-    category?: string;
-    externalRating?: number;
-    averageRating?: number;
-    supplier_ID?: number;
-    supplier?: {
-        ID?: number;
-    };
-}
-
-interface ReviewData {
-    ID?: number;
-    product_ID: number;
-    rating: number;
-    comment?: string;
-    reviewer?: string;
-    product?: {
-        ID?: number;
-    };
-}
-
-interface SupplierData {
-    ID?: number;
-    name: string;
-    email: string;
-    rating: number;
-}
-
 interface SubmitReviewResult {
     success: boolean;
     averageRating: number;
@@ -226,7 +202,7 @@ module.exports = CDS.service.impl(async function (service: any) {
             "[CatalogService] BEFORE CREATE Products - Handler invoked!",
         );
 
-        const product = req.data as ProductData;
+        const product = req.data as CreateProductInput;
 
         // === EXTERNAL API INTEGRATION ===
         let fakeStoreProducts: FakeStoreProduct[] | null = null;
@@ -249,9 +225,8 @@ module.exports = CDS.service.impl(async function (service: any) {
         validatePrice(product.price);
 
         // === SUPPLIER ID VALIDATION ===
-        // Extract supplier ID from association (could be supplier_ID or supplier.ID)
-        const supplierId =
-            product.supplier_ID || (product.supplier && product.supplier.ID);
+        // supplier_ID is required for product creation
+        const supplierId = product.supplier_ID;
         if (supplierId !== null && supplierId !== undefined) {
             await validateSupplierId(service, supplierId);
         } else {
@@ -294,7 +269,7 @@ module.exports = CDS.service.impl(async function (service: any) {
             "[CatalogService] BEFORE UPDATE Products - Handler invoked!",
         );
 
-        const data = req.data as Partial<ProductData>;
+        const data = req.data as UpdateProductInput;
 
         // === PRICE VALIDATION ===
         // Only validate price if it's being updated (not for partial updates like averageRating)
@@ -303,9 +278,8 @@ module.exports = CDS.service.impl(async function (service: any) {
         }
 
         // === SUPPLIER ID VALIDATION ===
-        // Extract supplier ID from association (could be supplier_ID or supplier.ID)
-        const supplierId =
-            data.supplier_ID || (data.supplier && data.supplier.ID);
+        // Only validate if supplier_ID is being updated
+        const supplierId = data.supplier_ID;
         if (supplierId !== null && supplierId !== undefined) {
             await validateSupplierId(service, supplierId);
         }
@@ -321,7 +295,7 @@ module.exports = CDS.service.impl(async function (service: any) {
             "[CatalogService] BEFORE CREATE ProductReviews - Handler invoked!",
         );
 
-        const review = req.data as ReviewData;
+        const review = req.data as CreateProductReviewInput;
         validateRating(review.rating, "Rating");
     });
 
@@ -335,7 +309,7 @@ module.exports = CDS.service.impl(async function (service: any) {
         const reviewID = req.params[0] as number;
         await validateReviewExists(service, reviewID);
 
-        const review = req.data as Partial<ReviewData>;
+        const review = req.data as UpdateProductReviewInput;
         validateRating(review.rating, "Rating");
     });
 
@@ -363,10 +337,8 @@ module.exports = CDS.service.impl(async function (service: any) {
         );
 
         // Get the product ID from the deleted review
-        const reviewData = data as ReviewData;
-        const productID =
-            reviewData.product_ID ||
-            (reviewData.product && reviewData.product.ID);
+        const reviewData = data as CreateProductReviewInput;
+        const productID = reviewData.product_ID;
         if (productID !== null && productID !== undefined) {
             await updateProductAverageRating(service, productID);
         } else {
@@ -406,7 +378,7 @@ module.exports = CDS.service.impl(async function (service: any) {
             "[CatalogService] BEFORE UPDATE Suppliers - Handler invoked!",
         );
 
-        const supplier = req.data as Partial<SupplierData>;
+        const supplier = req.data as UpdateSupplierInput;
         validateRating(supplier.rating, "Supplier rating");
     });
 
