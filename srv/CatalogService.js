@@ -172,7 +172,10 @@ module.exports = cds.service.impl(async function (service) {
         const data = req.data;
 
         // === PRICE VALIDATION ===
-        validatePrice(data.price);
+        // Only validate price if it's being updated (not for partial updates like averageRating)
+        if (data.price !== undefined) {
+            validatePrice(data.price);
+        }
 
         // === SUPPLIER ID VALIDATION ===
         // Extract supplier ID from association (could be supplier_ID or supplier.ID)
@@ -212,13 +215,13 @@ module.exports = cds.service.impl(async function (service) {
     // =========================================================================
 
     // beforeCreate handler for Suppliers - Rating validation
-    service.before("CREATE", "Suppliers", async (req) => {
-        console.log(
-            "[CatalogService] BEFORE CREATE Suppliers - Handler invoked!",
-        );
-        const supplier = req.data;
-        validateRating(supplier.rating, "Supplier rating");
-    });
+    // service.before("CREATE", "Suppliers", async (req) => {
+    //     console.log(
+    //         "[CatalogService] BEFORE CREATE Suppliers - Handler invoked!",
+    //     );
+    //     const supplier = req.data;
+    //     validateRating(supplier.rating, "Supplier rating");
+    // });
 
     // beforeUpdate handler for Suppliers - Rating validation
     service.before("UPDATE", "Suppliers", async (req) => {
@@ -289,7 +292,9 @@ module.exports = cds.service.impl(async function (service) {
             // We already have the new review's rating, so add it to the existing sum
             const newTotalSum = currentSum + rating;
             const newTotalCount = existingCount + 1;
-            const averageRating = newTotalSum / newTotalCount;
+            // Round to 2 decimal places to match Decimal(3,2) precision in schema
+            const averageRating =
+                Math.round((newTotalSum / newTotalCount) * 100) / 100;
 
             console.log(
                 `[CatalogService] Calculated averageRating: ${averageRating} from ${newTotalCount} reviews (including new review)`,
