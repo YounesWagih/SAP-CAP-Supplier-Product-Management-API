@@ -69,6 +69,65 @@ async function validateSupplierId(service, supplierId) {
 }
 
 /**
+ * Validate that review_id exists in the database
+ * @param {Object} service - The CDS service instance
+ * @param {number} reviewId - The review ID to validate
+ * @throws {Error} If review does not exist
+ */
+async function validateReviewExists(service, reviewId) {
+    if (reviewId !== undefined) {
+        const { ProductReviews } = service.entities;
+        const reviewExists = await service.exists(ProductReviews, reviewId);
+        if (!reviewExists) {
+            console.log(
+                `[CatalogService] REJECTING: review with ID ${reviewId} does not exist`,
+            );
+            throw new Error(`Review with ID ${reviewId} does not exist`);
+        }
+        console.log(
+            `[CatalogService] Review validation passed: review ${reviewId} exists`,
+        );
+    }
+}
+
+/**
+ * Calculate and update the average rating for a product
+ * @param {Object} service - The CDS service instance
+ * @param {number} productID - The product ID to update
+ */
+async function updateProductAverageRating(service, productID) {
+    const { Products, ProductReviews } = service.entities;
+
+    // Read all reviews for the product
+    const reviews = await service
+        .read(ProductReviews)
+        .where({ product_ID: productID })
+        .columns((r) => r.rating);
+
+    // Calculate average rating
+    let averageRating = null;
+    if (reviews.length > 0) {
+        const totalSum = reviews.reduce((acc, r) => acc + r.rating, 0);
+        // Round to 2 decimal places to match Decimal(3,2) precision in schema
+        averageRating = Math.round((totalSum / reviews.length) * 100) / 100;
+    }
+
+    console.log(
+        `[CatalogService] Calculated averageRating: ${averageRating} from ${reviews.length} reviews for product ${productID}`,
+    );
+
+    // Update product's averageRating
+    await service
+        .update(Products)
+        .where({ ID: productID })
+        .set({ averageRating: averageRating });
+
+    console.log(
+        `[CatalogService] Updated averageRating to ${averageRating} for product ${productID}`,
+    );
+}
+
+/**
  * Fetch products from FakeStoreAPI
  * @returns {Promise<Array>} Array of products
  */
@@ -206,8 +265,57 @@ module.exports = cds.service.impl(async function (service) {
             "[CatalogService] BEFORE UPDATE ProductReviews - Handler invoked!",
         );
 
+        // Check if review exists
+        const reviewID = req.params[0];
+        await validateReviewExists(service, reviewID);
+
         const review = req.data;
         validateRating(review.rating, "Rating");
+    });
+
+    // afterUpdate handler for ProductReviews - Recalculate average rating
+    service.after("UPDATE", "ProductReviews", async (data, req) => {
+        console.log(
+            "[CatalogService] AFTER UPDATE ProductReviews - Handler invoked!",
+        );
+
+        // Get the product ID from the updated review
+        const productID = req.params[0];
+        if (productID) {
+            await updateProductAverageRating(service, productID);
+        } else {
+            console.log(
+                "[CatalogService] Could not determine product ID from updated review",
+            );
+        }
+    });
+
+    // afterDelete handler for ProductReviews - Recalculate average rating
+    service.after("DELETE", "ProductReviews", async (data, req) => {
+        console.log(
+            "[CatalogService] AFTER DELETE ProductReviews - Handler invoked!",
+        );
+
+        // Get the product ID from the deleted review
+        const productID = data.product_ID || (data.product && data.product.ID);
+        if (productID) {
+            await updateProductAverageRating(service, productID);
+        } else {
+            console.log(
+                "[CatalogService] Could not determine product ID from deleted review",
+            );
+        }
+    });
+
+    // beforeDelete handler for ProductReviews - Validate review exists
+    service.before("DELETE", "ProductReviews", async (req) => {
+        console.log(
+            "[CatalogService] BEFORE DELETE ProductReviews - Handler invoked!",
+        );
+
+        // Check if review exists
+        const reviewID = req.params[0];
+        await validateReviewExists(service, reviewID);
     });
 
     // =========================================================================
