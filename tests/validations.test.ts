@@ -5,8 +5,15 @@
 
 describe("Entity Validations", () => {
     describe("Product Validation", () => {
-        const validateProduct = (product) => {
-            const errors = [];
+        interface ProductTestInput {
+            price?: number;
+            category?: string;
+            externalRating?: number;
+            averageRating?: number;
+        }
+
+        const validateProduct = (product: ProductTestInput): boolean => {
+            const errors: string[] = [];
 
             // Price validation
             if (product.price !== undefined) {
@@ -81,8 +88,14 @@ describe("Entity Validations", () => {
     });
 
     describe("Supplier Validation", () => {
-        const validateSupplier = (supplier) => {
-            const errors = [];
+        interface SupplierTestInput {
+            rating?: number;
+            email?: string;
+            name?: string;
+        }
+
+        const validateSupplier = (supplier: SupplierTestInput): boolean => {
+            const errors: string[] = [];
 
             // Rating validation
             if (supplier.rating !== undefined) {
@@ -145,8 +158,14 @@ describe("Entity Validations", () => {
     });
 
     describe("ProductReview Validation", () => {
-        const validateReview = (review) => {
-            const errors = [];
+        interface ReviewTestInput {
+            rating?: number;
+            comment?: string;
+            reviewer?: string;
+        }
+
+        const validateReview = (review: ReviewTestInput): boolean => {
+            const errors: string[] = [];
 
             // Rating validation (required)
             if (review.rating === undefined) {
@@ -205,8 +224,18 @@ describe("Entity Validations", () => {
 });
 
 describe("Supplier ID Validation", () => {
-    const validateSupplierId = async (service, supplierId) => {
-        const errors = [];
+    interface MockService {
+        entities: { Suppliers: Record<string, unknown> };
+        exists: (entity: string, id: number) => Promise<boolean>;
+    }
+
+    const validateSupplierId = async (
+        _service: MockService,
+        supplierId: number | undefined,
+    ): Promise<boolean> => {
+        // Note: _service is reserved for future implementation where we would call
+        // service.exists('Suppliers', supplierId) to verify supplier exists in DB
+        const errors: string[] = [];
 
         if (supplierId === undefined) {
             return true; // Optional field
@@ -232,9 +261,9 @@ describe("Supplier ID Validation", () => {
 
     test("should accept valid supplier ID", async () => {
         // Mock service with exists method
-        const mockService = {
+        const mockService: MockService = {
             entities: { Suppliers: {} },
-            exists: async (entity, id) => {
+            exists: async (_entity: string, id: number): Promise<boolean> => {
                 const validIds = [
                     19558439, 19558440, 19558441, 19558442, 19558443, 19558444,
                     19558445, 19558446, 19558447, 19558448,
@@ -250,9 +279,9 @@ describe("Supplier ID Validation", () => {
     });
 
     test("should reject invalid supplier ID", async () => {
-        const mockService = {
+        const mockService: MockService = {
             entities: { Suppliers: {} },
-            exists: async (entity, id) => {
+            exists: async (_entity: string, id: number): Promise<boolean> => {
                 const validIds = [
                     19558439, 19558440, 19558441, 19558442, 19558443, 19558444,
                     19558445, 19558446, 19558447, 19558448,
@@ -276,9 +305,9 @@ describe("Supplier ID Validation", () => {
     test("should allow undefined supplier ID (optional field)", async () => {
         // When supplier ID is undefined or null, it should be treated as optional (no validation)
         // The validateSupplierId function should return true for these cases
-        const mockService = {
+        const mockService: MockService = {
             entities: { Suppliers: {} },
-            exists: async () => false,
+            exists: async (): Promise<boolean> => false,
         };
 
         // Test with undefined (should pass as it's optional)
@@ -289,8 +318,16 @@ describe("Supplier ID Validation", () => {
 });
 
 describe("submitReview Action Validation", () => {
-    const validateSubmitReviewInput = (input) => {
-        const errors = [];
+    // Local type for submit review validation tests
+    interface SubmitReviewInput {
+        productID?: number;
+        rating?: number;
+        reviewer?: string;
+        comment?: string;
+    }
+
+    const validateSubmitReviewInput = (input: SubmitReviewInput): boolean => {
+        const errors: string[] = [];
 
         if (!input.productID) {
             errors.push("productID is required");
@@ -355,14 +392,15 @@ describe("Edge Cases", () => {
     test("should handle decimal price values correctly", () => {
         const prices = [0.01, 0.99, 99.99, 9999.99];
 
-        prices.forEach((price) => {
+        prices.forEach((price: number) => {
             expect(price).toBeGreaterThan(0);
             expect(price).toBeLessThan(10000);
         });
     });
 
     test("should handle decimal rating values correctly", () => {
-        const validateRating = (rating) => rating >= 1 && rating <= 5;
+        const validateRating = (rating: number): boolean =>
+            rating >= 1 && rating <= 5;
 
         expect(validateRating(1)).toBe(true);
         expect(validateRating(5)).toBe(true);
@@ -382,7 +420,7 @@ describe("Edge Cases", () => {
             "user_name@domain.com",
         ];
 
-        specialEmails.forEach((email) => {
+        specialEmails.forEach((email: string) => {
             expect(email).toContain("@");
         });
     });

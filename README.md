@@ -17,29 +17,51 @@ This project implements a comprehensive CRUD API for a supplier product catalog 
 ```
 cap-task/
 ├── db/
-│   └── schema.cds           # Database schema definitions
+│   └── schema.cds              # Database schema definitions
 ├── lib/
-│   └── catalog-service.js  # Custom handler implementations
+│   └── catalog-service.ts      # Custom handler implementations (TypeScript)
 ├── srv/
-│   ├── CatalogService.cds  # Service definitions
-│   ├── CatalogService.js   # Main service handlers
-│   └── catalog-service-handler.js  # Handler registration
+│   ├── CatalogService.cds      # Service definitions
+│   └── CatalogService.ts       # Main service handlers (TypeScript)
+├── types/
+│   ├── entities.d.ts           # Entity type definitions
+│   ├── service.d.ts            # Service-related types
+│   ├── validation.d.ts         # Validation function types
+│   └── external.d.ts           # External API types
 ├── tests/
-│   ├── catalog-service.test.js  # Handler unit tests
-│   └── validations.test.js      # Validation tests
-├── jest.config.js           # Jest configuration
-├── package.json             # Dependencies and scripts
-└── README.md               # This file
+│   ├── catalog-service.test.ts # Handler unit tests (TypeScript)
+│   └── validations.test.ts     # Validation tests (TypeScript)
+├── tsconfig.json               # TypeScript configuration
+├── tsconfig.build.json         # TypeScript build configuration
+├── jest.config.js              # Jest configuration
+├── package.json                # Dependencies and scripts
+└── README.md                   # This file
 ```
 
-## Installation
+## TypeScript Setup
+
+This project has been migrated to TypeScript for improved type safety and developer experience.
 
 ### Prerequisites
 
 - Node.js (v18 or higher recommended)
 - npm (comes with Node.js)
 
-### Steps
+### TypeScript Configuration
+
+The project uses two TypeScript configuration files:
+
+1. **tsconfig.json** - Development configuration with strict type checking
+2. **tsconfig.build.json** - Build configuration for production (excludes tests)
+
+Key TypeScript settings:
+- `target`: ES2020
+- `module`: CommonJS
+- `strict`: true (strict type checking enabled)
+- `esModuleInterop`: true
+- `skipLibCheck`: true
+
+### Installation
 
 1. **Install dependencies**:
 
@@ -52,6 +74,11 @@ cap-task/
    - `@sap/cds-sqlite` - SQLite database adapter
    - `sqlite3` - SQLite driver
    - `express` - HTTP server
+   - `typescript` - TypeScript compiler
+   - `@types/node` - Node.js type definitions
+   - `@types/express` - Express type definitions
+   - `jest` - Testing framework
+   - `@types/jest` - Jest type definitions
 
 2. **Initialize the database**:
 
@@ -61,9 +88,21 @@ cap-task/
 
    This creates a SQLite database file (`db.sqlite`) with the schema.
 
-## Running the Project
+## NPM Scripts
 
-### Development Mode (Auto-reload)
+The following npm scripts are available:
+
+| Script | Description |
+|--------|-------------|
+| `npm run build` | Compile TypeScript to JavaScript in `dist/` directory |
+| `npm run watch` | Start CAP server with auto-reload on file changes |
+| `npm start` | Start the CAP server at `http://localhost:4004` |
+| `npm test` | Run all Jest unit tests |
+| `npm run clean` | Remove compiled JavaScript from `dist/` directory |
+
+### Running the Project
+
+#### Development Mode (Auto-reload)
 
 ```bash
 npm run watch
@@ -71,21 +110,66 @@ npm run watch
 
 This starts the CAP server with auto-reload on file changes.
 
-### Production Mode
+#### Production Mode
 
 ```bash
+npm run build
 npm start
 ```
 
-This starts the CAP server at `http://localhost:4004`.
+This compiles TypeScript and starts the CAP server at `http://localhost:4004`.
 
-### Running Tests
+#### Running Tests
 
 ```bash
 npm test
 ```
 
-This runs all Jest unit tests.
+This runs all Jest unit tests. Tests are written in TypeScript and run directly using ts-jest.
+
+## Type Definitions
+
+The project includes comprehensive TypeScript type definitions in the `types/` directory:
+
+### types/entities.d.ts
+
+Defines interfaces for all CDS entities:
+
+- **Supplier**: ID, name, email, rating (1-5)
+- **Product**: ID, name, price, category, externalRating, averageRating, supplier association
+- **ProductReview**: ID, product_ID, rating (1-5), comment, reviewer
+- **CreateSupplierInput**: Input type for creating suppliers
+- **CreateProductInput**: Input type for creating products
+- **CreateProductReviewInput**: Input type for creating reviews
+
+### types/service.d.ts
+
+Defines service-related types:
+
+- **CatalogServiceEntities**: Exposes all CDS entities through OData
+- **CatalogService**: Full CAP service definition
+- **CDSRequest/CDSResponse**: Extended Express request/response types
+- **SubmitReviewParams/Result**: Parameters and result for submitReview action
+- **ICatalogService**: Interface defining all service operations
+
+### types/validation.d.ts
+
+Defines validation function types:
+
+- **ValidationError**: Field, message, code, value
+- **ValidationResult**: valid boolean and errors array
+- **SupplierValidationInput**: Input type for supplier validation
+- **ProductValidationInput**: Input type for product validation
+- **ProductReviewValidationInput**: Input type for review validation
+
+### types/external.d.ts
+
+Defines external API integration types:
+
+- **FakeStoreProduct**: Product from FakeStore API
+- **FakeStoreRating**: Rating object from FakeStore API
+- **ExternalProduct**: Mapped product with externalRating
+- **ExternalApiResponse**: Generic API response wrapper
 
 ## API Endpoints
 
@@ -294,15 +378,15 @@ The following validations are enforced:
 
 ### Unit Tests
 
-The project includes comprehensive unit tests covering:
+The project includes comprehensive unit tests written in TypeScript:
 
-- **Handler Tests** (`tests/catalog-service.test.js`):
+- **Handler Tests** (`tests/catalog-service.test.ts`):
   - External API integration
   - Product creation with category
   - Review submission validation
   - Array handling
 
-- **Validation Tests** (`tests/validations.test.js`):
+- **Validation Tests** (`tests/validations.test.ts`):
   - Price validation
   - Rating validation
   - Email validation
@@ -322,9 +406,9 @@ npm test -- --coverage
 ## Technology Stack
 
 - **Framework**: SAP Cloud Application Programming (CAP) v8
-- **Language**: JavaScript/Node.js
+- **Language**: TypeScript/JavaScript
 - **Database**: SQLite (development)
-- **Testing**: Jest
+- **Testing**: Jest with ts-jest
 - **HTTP Server**: Express (via CAP)
 
 ## Error Handling

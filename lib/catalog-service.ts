@@ -5,16 +5,18 @@
  * - submitReview action (create review and update average rating)
  */
 
-const cds = require("@sap/cds");
+// @ts-ignore - SAP CAP types
+import cds from "@sap/cds";
+const CDS = require("@sap/cds");
 
-// HTTP client for external API calls
-// Using native fetch (Node.js 18+)
+import type { ProductReview } from "../types/entities";
+import type { FakeStoreProduct } from "../types/external";
 
 /**
  * Fetch products from FakeStoreAPI
- * @returns {Promise<Array>} Array of products
+ * @returns Promise<FakeStoreProduct[]> Array of products
  */
-async function fetchFakeStoreProducts() {
+async function fetchFakeStoreProducts(): Promise<FakeStoreProduct[]> {
     const url =
         "https://api.scraperapi.com?api_key=519e90fba2f1a95fa6905865cd960a96&url=https://fakestoreapi.com/products";
 
@@ -23,42 +25,76 @@ async function fetchFakeStoreProducts() {
         if (!response.ok) {
             throw new Error(`HTTP error! status: ${response.status}`);
         }
-        const products = await response.json();
+        const products = (await response.json()) as FakeStoreProduct[];
         return products;
     } catch (error) {
-        throw new Error(`Failed to fetch FakeStoreAPI: ${error.message}`);
+        const errorMessage =
+            error instanceof Error ? error.message : "Unknown error";
+        throw new Error(`Failed to fetch FakeStoreAPI: ${errorMessage}`);
     }
 }
 
 /**
  * Calculate average rating from reviews
- * @param {Object} db - Database connection
- * @param {Number} productId - Product ID
- * @returns {Promise<Number>} Average rating
+ * @param db - Database connection
+ * @param productId - Product ID
+ * @returns Promise<number> Average rating
  */
-async function calculateAverageRating(db, productId) {
-    const { ProductReviews } = db.entities;
+async function calculateAverageRating(
+    db: any,
+    productId: number,
+): Promise<number> {
+    const ProductReviews = db.entities.ProductReviews;
 
     // Use proper association navigation syntax
-    const reviews = await db
+    const reviews: ProductReview[] = await db
         .read(ProductReviews)
-        .where({ product_ID: productId })
-        .columns((r) => r.rating);
+        .where({ product_ID: productId });
 
     if (reviews.length === 0) {
         return 0;
     }
 
-    const sum = reviews.reduce((acc, r) => acc + r.rating, 0);
+    const sum = reviews.reduce(
+        (acc: number, r: ProductReview) => acc + r.rating,
+        0,
+    );
     return sum / reviews.length;
 }
 
-module.exports = class CatalogService {
+interface ProductData {
+    ID?: number;
+    name: string;
+    price: number;
+    category?: string;
+    externalRating?: number;
+    averageRating?: number;
+    supplier_ID?: number;
+    supplier?: {
+        ID?: number;
+    };
+}
+
+interface ReviewRequestData {
+    productID: number;
+    rating: number;
+    comment?: string;
+    reviewer?: string;
+}
+
+interface SubmitReviewResponse {
+    success: boolean;
+    averageRating: number;
+}
+
+export default class CatalogService {
     /**
      * beforeCreate handler for Products
      * Fetches external rating from FakeStoreAPI based on category
      */
-    async beforeCreateProducts(data) {
+    async beforeCreateProducts(
+        data: ProductData | ProductData[],
+    ): Promise<void> {
         console.log("[CatalogService] beforeCreateProducts called");
 
         // Handle both single record and array of records
@@ -90,9 +126,9 @@ module.exports = class CatalogService {
                 // Find a product in the same category
 
                 const matchingProduct = fakeStoreProducts.find(
-                    (p) =>
+                    (p: FakeStoreProduct) =>
                         p.category.toLowerCase() ===
-                        product.category.toLowerCase(),
+                        product.category?.toLowerCase(),
                 );
 
                 if (matchingProduct) {
@@ -105,11 +141,11 @@ module.exports = class CatalogService {
                         `[CatalogService] No matching product found for category: ${product.category}`,
                     );
                 }
-            } catch (error) {
+            } catch (error: any) {
                 // Log error but don't block product creation
                 console.error(
                     "[CatalogService] Error fetching external rating:",
-                    error.message,
+                    error?.message,
                 );
                 console.log(
                     "[CatalogService] Proceeding with product creation without external rating",
@@ -122,8 +158,9 @@ module.exports = class CatalogService {
      * submitReview action handler
      * Creates a ProductReview and updates the Product's averageRating
      */
-    async submitReview(req) {
-        const { productID, rating, comment, reviewer } = req.data;
+    async submitReview(req: any): Promise<SubmitReviewResponse> {
+        const { productID, rating, comment, reviewer } =
+            req.data as ReviewRequestData;
 
         console.log(
             `[CatalogService] submitReview called for product ${productID}`,
@@ -135,8 +172,9 @@ module.exports = class CatalogService {
         }
 
         // Use run() instead of tx() for simpler transaction handling
-        const db = cds.db;
-        const { ProductReviews, Products } = db.entities;
+        const db = (CDS as any).db;
+        const ProductReviews = db.entities.ProductReviews;
+        const Products = db.entities.Products;
 
         try {
             // Create the review using the correct foreign key syntax
@@ -168,12 +206,12 @@ module.exports = class CatalogService {
                 success: true,
                 averageRating: averageRating,
             };
-        } catch (error) {
+        } catch (error: any) {
             console.error(
                 "[CatalogService] Error in submitReview:",
-                error.message,
+                error?.message,
             );
             throw error;
         }
     }
-};
+}
