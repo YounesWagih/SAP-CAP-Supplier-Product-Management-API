@@ -252,7 +252,7 @@ module.exports = CDS.service.impl(async function (service: any) {
         // Extract supplier ID from association (could be supplier_ID or supplier.ID)
         const supplierId =
             product.supplier_ID || (product.supplier && product.supplier.ID);
-        if (supplierId) {
+        if (supplierId !== null && supplierId !== undefined) {
             await validateSupplierId(service, supplierId);
         } else {
             throw new Error(`Supplier ID not found`);
@@ -306,7 +306,7 @@ module.exports = CDS.service.impl(async function (service: any) {
         // Extract supplier ID from association (could be supplier_ID or supplier.ID)
         const supplierId =
             data.supplier_ID || (data.supplier && data.supplier.ID);
-        if (supplierId) {
+        if (supplierId !== null && supplierId !== undefined) {
             await validateSupplierId(service, supplierId);
         }
     });
@@ -347,7 +347,7 @@ module.exports = CDS.service.impl(async function (service: any) {
 
         // Get the product ID from the updated review
         const productID = req.params[0] as number;
-        if (productID) {
+        if (productID !== null && productID !== undefined) {
             await updateProductAverageRating(service, productID);
         } else {
             console.log(
@@ -367,7 +367,7 @@ module.exports = CDS.service.impl(async function (service: any) {
         const productID =
             reviewData.product_ID ||
             (reviewData.product && reviewData.product.ID);
-        if (productID) {
+        if (productID !== null && productID !== undefined) {
             await updateProductAverageRating(service, productID);
         } else {
             console.log(
