@@ -77,7 +77,7 @@ async function updateProductAverageRating(
 
     // Calculate average using aggregation instead of reading all rows
     const result = await service.run(
-        cds.SELECT.from(ProductReviews)
+        cds.ql.SELECT.from(ProductReviews)
             .columns([{ "avg(rating)": "avgRating" }])
             .where({ product_ID: productID }),
     );
@@ -262,10 +262,13 @@ module.exports = cds.service.impl(async function (service: Service) {
             // Update average rating incrementally using aggregation
             await updateProductAverageRating(service, productID);
 
+            // Get the updated product to return the averageRating
+            const productResult = await service
+                .read(Products)
+                .where({ ID: productID });
             return {
                 success: true,
-                averageRating: (await service.read(Products, productID))[0]
-                    .averageRating,
+                averageRating: productResult[0]?.averageRating ?? null,
             };
         }),
     );
