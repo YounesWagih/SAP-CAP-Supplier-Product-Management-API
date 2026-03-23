@@ -11,6 +11,7 @@ import {
     UpdateSupplierSchema,
     CreateProductReviewSchema,
     UpdateProductReviewSchema,
+    SubmitReviewSchema,
 } from "../lib/validation/schemas";
 import type {
     CreateProductInput,
@@ -18,6 +19,7 @@ import type {
     CreateProductReviewInput,
     UpdateProductReviewInput,
     UpdateSupplierInput,
+    SubmitReviewInput,
 } from "../lib/validation/schemas";
 import type { FakeStoreProduct } from "../types/external";
 import {
@@ -146,6 +148,7 @@ module.exports = cds.service.impl(async function (service: Service) {
         "Suppliers",
         asyncHandler(async (req) => {
             req.data = validate(req.data, CreateSupplierSchema);
+            console.log(req.data);
 
             const supplierId = req.params[0] as number;
             if (supplierId) await validateSupplierId(service, supplierId);
@@ -178,7 +181,7 @@ module.exports = cds.service.impl(async function (service: Service) {
     service.on(
         "submitReview",
         asyncHandler(async (req): Promise<SubmitReviewResult> => {
-            req.data = validate(req.data, CreateProductReviewSchema);
+            req.data = validate(req.data, SubmitReviewSchema);
 
             const requestData = req.data;
 

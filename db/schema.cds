@@ -1,7 +1,7 @@
 // Schema with validations for SAP CAP project
 
 entity Suppliers {
-  key ID     : Integer;
+  key ID     : Integer ;
       name   : String(100);
       email  : String(255);
 

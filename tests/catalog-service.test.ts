@@ -182,6 +182,7 @@ describe("CatalogService Handlers", () => {
                 name: "Test Product",
                 price: 99.99,
                 category: "electronics",
+                supplier_ID: 1,
                 supplier: {
                     ID: 1,
                     name: "Test Supplier",

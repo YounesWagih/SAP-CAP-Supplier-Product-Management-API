@@ -53,6 +53,14 @@ export const UpdateProductReviewSchema = CreateProductReviewSchema.omit({
     product_ID: true,
 }).partial();
 
+// --- 3. Action Schemas (API-specific) ---
+export const SubmitReviewSchema = CreateProductReviewSchema.omit({
+    product_ID: true,
+}).extend({
+    productID: id,
+});
+export type SubmitReviewInput = z.infer<typeof SubmitReviewSchema>;
+
 // --- 3. TypeScript Types ---
 
 export type Supplier = z.infer<typeof SupplierSchema>;
