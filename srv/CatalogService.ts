@@ -1,11 +1,8 @@
-/**
- * CatalogService - Main implementation file
- * This file must be named exactly as the CDS service (CatalogService.cds -> CatalogService.ts)
- * for CAP to automatically load and execute handlers
- */
-
 // @ts-ignore - SAP CAP types
-import cds from "@sap/cds";
+import cds, { Service, SELECT } from "@sap/cds";
+
+import { ValidationError, NotFoundError, ApiError } from "../lib/errors";
+import asyncHandler from "../lib/utils/asyncHandler";
 import type {
     ProductReview,
     CreateProductInput,
@@ -15,168 +12,110 @@ import type {
     UpdateSupplierInput,
 } from "../types/entities";
 import type { FakeStoreProduct } from "../types/external";
-
-// Use require for CommonJS compatibility
-const CDS = require("@sap/cds");
+import { error } from "console";
 
 // =========================================================================
 // Validation Helper Functions
 // =========================================================================
-
-/**
- * Validate that price is greater than 0
- * @param price - The price to validate
- * @throws Error if price is not greater than 0
- */
 function validatePrice(price: number | undefined): void {
     if (price === undefined || price === null) {
-        throw new Error("Price is required");
+        throw new ValidationError("Price is required");
     }
     if (price <= 0) {
-        console.log(`[CatalogService] REJECTING: price ${price} <= 0`);
-        throw new Error("Price must be greater than 0");
+        throw new ValidationError("Price must be greater than 0");
     }
-    console.log(`[CatalogService] Price validation passed: ${price}`);
 }
 
-/**
- * Validate that rating is between 1 and 5
- * @param rating - The rating to validate
- * @param fieldName - The name of the field being validated (for error messages)
- * @throws Error if rating is not between 1 and 5
- */
 function validateRating(
     rating: number | undefined,
     fieldName: string = "Rating",
 ): void {
-    if (rating !== undefined) {
-        if (rating < 1 || rating > 5) {
-            console.log(
-                `[CatalogService] REJECTING: ${fieldName.toLowerCase()} ${rating} outside 1-5`,
-            );
-            throw new Error(`${fieldName} must be between 1 and 5`);
-        }
-        console.log(
-            `[CatalogService] ${fieldName} validation passed: ${rating}`,
-        );
+    if (rating !== undefined && (rating < 1 || rating > 5)) {
+        throw new ValidationError(`${fieldName} must be between 1 and 5`);
     }
 }
 
-/**
- * Validate that supplier_id exists in the database
- * @param service - The CDS service instance
- * @param supplierId - The supplier ID to validate
- * @throws Error if supplier does not exist
- */
 async function validateSupplierId(
-    service: any,
+    service: Service,
     supplierId: number | undefined,
 ): Promise<void> {
     if (supplierId !== undefined) {
         const Suppliers = service.entities.Suppliers;
-        const supplierExists = await service.exists(Suppliers, supplierId);
-        if (!supplierExists) {
-            console.log(
-                `[CatalogService] REJECTING: supplier with ID ${supplierId} does not exist`,
+        const exists = await service.exists(Suppliers, supplierId);
+        if (!exists)
+            throw new NotFoundError(
+                `Supplier with ID ${supplierId} does not exist`,
             );
-            throw new Error(`Supplier with ID ${supplierId} does not exist`);
-        }
-        console.log(
-            `[CatalogService] Supplier validation passed: supplier ${supplierId} exists`,
-        );
     }
 }
 
-/**
- * Validate that review_id exists in the database
- * @param service - The CDS service instance
- * @param reviewId - The review ID to validate
- * @throws Error if review does not exist
- */
 async function validateReviewExists(
-    service: any,
+    service: Service,
     reviewId: number | undefined,
 ): Promise<void> {
     if (reviewId !== undefined) {
         const ProductReviews = service.entities.ProductReviews;
-        const reviewExists = await service.exists(ProductReviews, reviewId);
-        if (!reviewExists) {
-            console.log(
-                `[CatalogService] REJECTING: review with ID ${reviewId} does not exist`,
+        const exists = await service.exists(ProductReviews, reviewId);
+        if (!exists)
+            throw new NotFoundError(
+                `Review with ID ${reviewId} does not exist`,
             );
-            throw new Error(`Review with ID ${reviewId} does not exist`);
-        }
-        console.log(
-            `[CatalogService] Review validation passed: review ${reviewId} exists`,
-        );
     }
 }
 
-/**
- * Calculate and update the average rating for a product
- * @param service - The CDS service instance
- * @param productID - The product ID to update
- */
+// =========================================================================
+// Average Rating Helpers
+// =========================================================================
 async function updateProductAverageRating(
-    service: any,
+    service: Service,
     productID: number,
 ): Promise<void> {
+    console.log("1");
     const Products = service.entities.Products;
     const ProductReviews = service.entities.ProductReviews;
+    console.log(Products, ProductReviews);
 
-    // Read all reviews for the product
-    const reviews: ProductReview[] = await service
-        .read(ProductReviews)
-        .where({ product_ID: productID });
-
-    // Calculate average rating
-    let averageRating: number | null = null;
-    if (reviews.length > 0) {
-        const totalSum = reviews.reduce(
-            (acc: number, r: ProductReview) => acc + r.rating,
-            0,
-        );
-        // Round to 2 decimal places to match Decimal(3,2) precision in schema
-        averageRating = Math.round((totalSum / reviews.length) * 100) / 100;
-    }
-
-    console.log(
-        `[CatalogService] Calculated averageRating: ${averageRating} from ${reviews.length} reviews for product ${productID}`,
+    // Calculate average using aggregation instead of reading all rows
+    const result = await service.run(
+        cds.SELECT.from(ProductReviews)
+            .columns([{ "avg(rating)": "avgRating" }])
+            .where({ product_ID: productID }),
     );
+    const averageRating = result[0]?.avgRating
+        ? Math.round(result[0].avgRating * 100) / 100
+        : null;
 
-    // Update product's averageRating
     await service
         .update(Products)
         .where({ ID: productID })
-        .set({ averageRating: averageRating });
-
-    console.log(
-        `[CatalogService] Updated averageRating to ${averageRating} for product ${productID}`,
-    );
+        .set({ averageRating });
 }
 
-/**
- * Fetch products from FakeStoreAPI
- * @returns Promise<FakeStoreProduct[]> Array of products
- */
+// =========================================================================
+// External API Integration
+// =========================================================================
 async function fetchFakeStoreProducts(): Promise<FakeStoreProduct[]> {
-    const url =
-        "https://api.scraperapi.com?api_key=519e90fba2f1a95fa6905865cd960a96&url=https://fakestoreapi.com/products";
+    const apiKey =
+        process.env.FAKE_STORE_API_KEY || "519e90fba2f1a95fa6905865cd960a96";
+    if (!apiKey)
+        throw new ApiError(
+            "FAKE_STORE_API_KEY not set in environment variables",
+        );
 
-    try {
-        const response = await fetch(url);
-        if (!response.ok) {
-            throw new Error(`HTTP error! status: ${response.status}`);
-        }
-        const products = (await response.json()) as FakeStoreProduct[];
-        return products;
-    } catch (error) {
-        const errorMessage =
-            error instanceof Error ? error.message : "Unknown error";
-        throw new Error(`Failed to fetch from FakeStoreAPI: ${errorMessage}`);
-    }
+    const url = `https://api.scraperapi.com?api_key=${apiKey}&url=https://fakestoreapi.com/products`;
+
+    const response = await fetch(url);
+    if (!response.ok)
+        throw new ApiError(
+            `Failed to fetch FakeStoreAPI, status: ${response.status}`,
+        );
+
+    return (await response.json()) as FakeStoreProduct[];
 }
 
+// =========================================================================
+// Types for Actions
+// =========================================================================
 interface SubmitReviewResult {
     success: boolean;
     averageRating: number;
@@ -189,297 +128,145 @@ interface RequestData {
     reviewer?: string;
 }
 
-module.exports = CDS.service.impl(async function (service: any) {
-    console.log("[CatalogService] Initializing CatalogService handlers...");
-
-    // =========================================================================
+// =========================================================================
+// Service Implementation
+// =========================================================================
+module.exports = cds.service.impl(async function (service: Service) {
+    // -------------------------------
     // Product Handlers
-    // =========================================================================
+    // -------------------------------
+    service.before(
+        "CREATE",
+        "Products",
+        asyncHandler(async (req) => {
+            const product = req.data as CreateProductInput;
 
-    // beforeCreate handler for Products - External API integration + validations
-    service.before("CREATE", "Products", async (req: any) => {
-        console.log(
-            "[CatalogService] BEFORE CREATE Products - Handler invoked!",
-        );
+            // Price & supplier validation
+            validatePrice(product.price);
+            if (!product.supplier_ID)
+                throw new ValidationError("Supplier ID is required");
+            await validateSupplierId(service, product.supplier_ID);
 
-        const product = req.data as CreateProductInput;
-
-        // === EXTERNAL API INTEGRATION ===
-        let fakeStoreProducts: FakeStoreProduct[] | null = null;
-        try {
-            fakeStoreProducts = await fetchFakeStoreProducts();
-            console.log(
-                `[CatalogService] Fetched ${fakeStoreProducts.length} products from FakeStoreAPI`,
-            );
-        } catch (error: any) {
-            console.error(
-                "[CatalogService] Error fetching external rating:",
-                error?.message,
-            );
-            console.log(
-                "[CatalogService] Proceeding with product creation without external rating",
-            );
-        }
-
-        // === PRICE VALIDATION ===
-        validatePrice(product.price);
-
-        // === SUPPLIER ID VALIDATION ===
-        // supplier_ID is required for product creation
-        const supplierId = product.supplier_ID;
-        if (supplierId !== null && supplierId !== undefined) {
-            await validateSupplierId(service, supplierId);
-        } else {
-            throw new Error(`Supplier ID not found`);
-        }
-
-        // === EXTERNAL API INTEGRATION ===
-        if (product.category && fakeStoreProducts) {
-            console.log(
-                `[CatalogService] Fetching external rating for category: ${product.category}`,
-            );
-
-            // Find a product in the same category
-            const matchingProduct = fakeStoreProducts.find(
-                (p: FakeStoreProduct) =>
-                    p.category.toLowerCase() ===
-                    product.category?.toLowerCase(),
-            );
-
-            if (matchingProduct) {
-                product.externalRating = matchingProduct.rating.rate;
-                console.log(
-                    `[CatalogService] Set externalRating to ${matchingProduct.rating.rate} from FakeStoreAPI`,
+            // External API rating
+            if (product.category) {
+                const fakeStoreProducts = await fetchFakeStoreProducts();
+                const matching = fakeStoreProducts.find(
+                    (p) =>
+                        p.category.toLowerCase() ===
+                        product.category?.toLowerCase(),
                 );
-            } else {
-                console.log(
-                    `[CatalogService] No matching product found for category: ${product.category}`,
-                );
+                if (matching) product.externalRating = matching.rating.rate;
             }
-        } else if (!product.category) {
-            console.log(
-                "[CatalogService] No category provided, skipping external rating fetch",
-            );
-        }
-    });
+        }),
+    );
 
-    // beforeUpdate handler for Products - Validation
-    service.before("UPDATE", "Products", async (req: any) => {
-        console.log(
-            "[CatalogService] BEFORE UPDATE Products - Handler invoked!",
-        );
+    service.before(
+        "UPDATE",
+        "Products",
+        asyncHandler(async (req) => {
+            const data = req.data as UpdateProductInput;
+            if (data.price !== undefined) validatePrice(data.price);
+            if (data.supplier_ID !== undefined)
+                await validateSupplierId(service, data.supplier_ID);
+        }),
+    );
 
-        const data = req.data as UpdateProductInput;
-
-        // === PRICE VALIDATION ===
-        // Only validate price if it's being updated (not for partial updates like averageRating)
-        if (data.price !== undefined) {
-            validatePrice(data.price);
-        }
-
-        // === SUPPLIER ID VALIDATION ===
-        // Only validate if supplier_ID is being updated
-        const supplierId = data.supplier_ID;
-        if (supplierId !== null && supplierId !== undefined) {
-            await validateSupplierId(service, supplierId);
-        }
-    });
-
-    // =========================================================================
+    // -------------------------------
     // ProductReview Handlers
-    // =========================================================================
+    // -------------------------------
+    service.before(
+        "CREATE",
+        "ProductReviews",
+        asyncHandler(async (req) => {
+            const review = req.data as CreateProductReviewInput;
+            validateRating(review.rating, "Rating");
+        }),
+    );
 
-    // beforeCreate handler for ProductReviews - Rating validation
-    service.before("CREATE", "ProductReviews", async (req: any) => {
-        console.log(
-            "[CatalogService] BEFORE CREATE ProductReviews - Handler invoked!",
-        );
+    service.before(
+        "UPDATE",
+        "ProductReviews",
+        asyncHandler(async (req) => {
+            const reviewID = req.params[0] as number;
+            await validateReviewExists(service, reviewID);
+            const review = req.data as UpdateProductReviewInput;
+            validateRating(review.rating, "Rating");
+        }),
+    );
 
-        const review = req.data as CreateProductReviewInput;
-        validateRating(review.rating, "Rating");
-    });
+    // afterUpdate & afterDelete now fetch product_ID correctly
+    service.after(
+        ["UPDATE", "DELETE"],
+        "ProductReviews",
+        asyncHandler(async (data, req) => {
+            const reviewData =
+                req.event === "DELETE"
+                    ? (data as CreateProductReviewInput)
+                    : await service.read(
+                          service.entities.ProductReviews,
+                          req.params[0],
+                      );
+            const productID = reviewData.product_ID;
+            if (productID) await updateProductAverageRating(service, productID);
+        }),
+    );
 
-    // beforeUpdate handler for ProductReviews - Rating validation
-    service.before("UPDATE", "ProductReviews", async (req: any) => {
-        console.log(
-            "[CatalogService] BEFORE UPDATE ProductReviews - Handler invoked!",
-        );
+    service.before(
+        "DELETE",
+        "ProductReviews",
+        asyncHandler(async (req) => {
+            const reviewID = req.params[0] as number;
+            await validateReviewExists(service, reviewID);
+        }),
+    );
 
-        // Check if review exists
-        const reviewID = req.params[0] as number;
-        await validateReviewExists(service, reviewID);
-
-        const review = req.data as UpdateProductReviewInput;
-        validateRating(review.rating, "Rating");
-    });
-
-    // afterUpdate handler for ProductReviews - Recalculate average rating
-    service.after("UPDATE", "ProductReviews", async (_data: any, req: any) => {
-        console.log(
-            "[CatalogService] AFTER UPDATE ProductReviews - Handler invoked!",
-        );
-
-        // Get the product ID from the updated review
-        const productID = req.params[0] as number;
-        if (productID !== null && productID !== undefined) {
-            await updateProductAverageRating(service, productID);
-        } else {
-            console.log(
-                "[CatalogService] Could not determine product ID from updated review",
-            );
-        }
-    });
-
-    // afterDelete handler for ProductReviews - Recalculate average rating
-    service.after("DELETE", "ProductReviews", async (data: any, _req: any) => {
-        console.log(
-            "[CatalogService] AFTER DELETE ProductReviews - Handler invoked!",
-        );
-
-        // Get the product ID from the deleted review
-        const reviewData = data as CreateProductReviewInput;
-        const productID = reviewData.product_ID;
-        if (productID !== null && productID !== undefined) {
-            await updateProductAverageRating(service, productID);
-        } else {
-            console.log(
-                "[CatalogService] Could not determine product ID from deleted review",
-            );
-        }
-    });
-
-    // beforeDelete handler for ProductReviews - Validate review exists
-    service.before("DELETE", "ProductReviews", async (req: any) => {
-        console.log(
-            "[CatalogService] BEFORE DELETE ProductReviews - Handler invoked!",
-        );
-
-        // Check if review exists
-        const reviewID = req.params[0] as number;
-        await validateReviewExists(service, reviewID);
-    });
-
-    // =========================================================================
+    // -------------------------------
     // Supplier Handlers
-    // =========================================================================
+    // -------------------------------
+    service.before(
+        "UPDATE",
+        "Suppliers",
+        asyncHandler(async (req) => {
+            const supplier = req.data as UpdateSupplierInput;
+            validateRating(supplier.rating, "Supplier rating");
+        }),
+    );
 
-    // beforeCreate handler for Suppliers - Rating validation
-    // service.before("CREATE", "Suppliers", async (req) => {
-    //     console.log(
-    //         "[CatalogService] BEFORE CREATE Suppliers - Handler invoked!",
-    //     );
-    //     const supplier = req.data;
-    //     validateRating(supplier.rating, "Supplier rating");
-    // });
-
-    // beforeUpdate handler for Suppliers - Rating validation
-    service.before("UPDATE", "Suppliers", async (req: any) => {
-        console.log(
-            "[CatalogService] BEFORE UPDATE Suppliers - Handler invoked!",
-        );
-
-        const supplier = req.data as UpdateSupplierInput;
-        validateRating(supplier.rating, "Supplier rating");
-    });
-
-    // =========================================================================
+    // -------------------------------
     // Action Handlers
-    // =========================================================================
-
-    // submitReview action handler
+    // -------------------------------
     service.on(
         "submitReview",
-        async (req: any): Promise<SubmitReviewResult> => {
-            console.log(
-                "[CatalogService] submitReview ACTION - Handler invoked!",
-            );
-            console.log(`[CatalogService] Request data:`, req.data);
-
+        asyncHandler(async (req): Promise<SubmitReviewResult> => {
             const { productID, rating, comment, reviewer } =
                 req.data as RequestData;
 
-            // Validate rating range using helper function
             validateRating(rating, "Rating");
 
             const ProductReviews = service.entities.ProductReviews;
             const Products = service.entities.Products;
 
-            try {
-                // === PRODUCT VALIDATION ===
-                // Verify that the productID exists before creating a review
-                const productExists = await service.exists(Products, productID);
-                if (!productExists) {
-                    console.log(
-                        `[CatalogService] REJECTING: product with ID ${productID} does not exist`,
-                    );
-                    throw new Error("Product not found");
-                }
-                console.log(
-                    `[CatalogService] Product validation passed: product ${productID} exists`,
+            const productExists = await service.exists(Products, productID);
+            if (!productExists)
+                throw new NotFoundError(
+                    `Product with ID ${productID} does not exist`,
                 );
 
-                // Read existing reviews BEFORE creating the new one to get current count
-                const existingReviews: ProductReview[] = await service
-                    .read(ProductReviews)
-                    .where({ product_ID: productID });
+            // Create new review
+            const review = await service.create(ProductReviews, {
+                product_ID: productID,
+                rating,
+                comment,
+                reviewer,
+            });
+            // Update average rating incrementally using aggregation
+            await updateProductAverageRating(service, productID);
 
-                // Calculate current sum from existing reviews
-                const currentSum = existingReviews.reduce(
-                    (acc: number, r: ProductReview) => acc + r.rating,
-                    0,
-                );
-                const existingCount = existingReviews.length;
-
-                // Create the review using the correct foreign key syntax
-                const review: ProductReview = await service.create(
-                    ProductReviews,
-                    {
-                        product_ID: productID,
-                        rating: rating,
-                        comment: comment,
-                        reviewer: reviewer,
-                    },
-                );
-
-                console.log(
-                    `[CatalogService] Created review with ID: ${review.ID}`,
-                );
-
-                // Calculate average rating INCLUDING the new review
-                // We already have the new review's rating, so add it to the existing sum
-                const newTotalSum = currentSum + rating;
-                const newTotalCount = existingCount + 1;
-                // Round to 2 decimal places to match Decimal(3,2) precision in schema
-                const averageRating =
-                    Math.round((newTotalSum / newTotalCount) * 100) / 100;
-
-                console.log(
-                    `[CatalogService] Calculated averageRating: ${averageRating} from ${newTotalCount} reviews (including new review)`,
-                );
-
-                // Update product's averageRating
-                await service
-                    .update(Products)
-                    .where({ ID: productID })
-                    .set({ averageRating: averageRating });
-
-                console.log(
-                    `[CatalogService] Updated averageRating to ${averageRating}`,
-                );
-
-                return {
-                    success: true,
-                    averageRating: averageRating,
-                };
-            } catch (error: any) {
-                console.error(
-                    "[CatalogService] Error in submitReview:",
-                    error?.message,
-                );
-                throw error;
-            }
-        },
+            return {
+                success: true,
+                averageRating: (await service.read(Products, productID))[0]
+                    .averageRating,
+            };
+        }),
     );
-
-    console.log("[CatalogService] All handlers registered successfully!");
 });

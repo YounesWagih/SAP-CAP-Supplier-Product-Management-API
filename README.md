@@ -18,8 +18,6 @@ This project implements a comprehensive CRUD API for a supplier product catalog 
 cap-task/
 ├── db/
 │   └── schema.cds              # Database schema definitions
-├── lib/
-│   └── catalog-service.ts      # Custom handler implementations (TypeScript)
 ├── srv/
 │   ├── CatalogService.cds      # Service definitions
 │   └── CatalogService.ts       # Main service handlers (TypeScript)

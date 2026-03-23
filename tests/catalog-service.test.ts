@@ -9,6 +9,12 @@ import type { Product, Supplier, ProductReview } from "../types/entities";
 
 // Mock the cds module - required for service initialization
 jest.mock("@sap/cds", () => ({
+    log: jest.fn(() => ({
+        debug: jest.fn(),
+        info: jest.fn(),
+        warn: jest.fn(),
+        error: jest.fn(),
+    })),
     service: {
         impl: jest.fn((callback: () => void) => callback),
     },
