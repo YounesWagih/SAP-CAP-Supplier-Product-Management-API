@@ -4,7 +4,6 @@ import cds, { Service, SELECT } from "@sap/cds";
 import { ValidationError, NotFoundError, ApiError } from "../lib/errors";
 import asyncHandler from "../lib/utils/asyncHandler";
 import type {
-    ProductReview,
     CreateProductInput,
     UpdateProductInput,
     CreateProductReviewInput,
@@ -12,8 +11,6 @@ import type {
     UpdateSupplierInput,
 } from "../types/entities";
 import type { FakeStoreProduct } from "../types/external";
-import { error } from "console";
-
 // =========================================================================
 // Validation Helper Functions
 // =========================================================================
@@ -32,6 +29,20 @@ function validateRating(
 ): void {
     if (rating !== undefined && (rating < 1 || rating > 5)) {
         throw new ValidationError(`${fieldName} must be between 1 and 5`);
+    }
+}
+
+async function validateProductId(
+    service: Service,
+    productId: number | undefined,
+): Promise<void> {
+    if (productId !== undefined) {
+        const Products = service.entities.Products;
+        const exists = await service.exists(Products, productId);
+        if (!exists)
+            throw new NotFoundError(
+                `Product with ID ${productId} does not exist`,
+            );
     }
 }
 
@@ -70,11 +81,8 @@ async function updateProductAverageRating(
     service: Service,
     productID: number,
 ): Promise<void> {
-    console.log("1");
     const Products = service.entities.Products;
     const ProductReviews = service.entities.ProductReviews;
-    console.log(Products, ProductReviews);
-
     // Calculate average using aggregation instead of reading all rows
     const result = await service.run(
         cds.ql.SELECT.from(ProductReviews)
@@ -141,6 +149,10 @@ module.exports = cds.service.impl(async function (service: Service) {
         asyncHandler(async (req) => {
             const product = req.data as CreateProductInput;
 
+            // prevent wrong ID updates creation
+            const productID = req.params[0] as number;
+            if (productID) await validateProductId(service, productID);
+
             // Price & supplier validation
             validatePrice(product.price);
             if (!product.supplier_ID)
@@ -171,6 +183,15 @@ module.exports = cds.service.impl(async function (service: Service) {
         }),
     );
 
+    service.before(
+        "DELETE",
+        "Products",
+        asyncHandler(async (req) => {
+            const productId = req.params[0] as number;
+            await validateProductId(service, productId);
+        }),
+    );
+
     // -------------------------------
     // ProductReview Handlers
     // -------------------------------
@@ -178,6 +199,9 @@ module.exports = cds.service.impl(async function (service: Service) {
         "CREATE",
         "ProductReviews",
         asyncHandler(async (req) => {
+            const reviewID = req.params[0] as number;
+            if (reviewID) await validateReviewExists(service, reviewID);
+
             const review = req.data as CreateProductReviewInput;
             validateRating(review.rating, "Rating");
         }),
@@ -187,8 +211,6 @@ module.exports = cds.service.impl(async function (service: Service) {
         "UPDATE",
         "ProductReviews",
         asyncHandler(async (req) => {
-            const reviewID = req.params[0] as number;
-            await validateReviewExists(service, reviewID);
             const review = req.data as UpdateProductReviewInput;
             validateRating(review.rating, "Rating");
         }),
@@ -224,11 +246,36 @@ module.exports = cds.service.impl(async function (service: Service) {
     // Supplier Handlers
     // -------------------------------
     service.before(
+        "CREATE",
+        "Suppliers",
+        asyncHandler(async (req) => {
+            const supplierId = req.params[0] as number;
+            if (supplierId) await validateSupplierId(service, supplierId);
+
+            const supplier = req.data;
+            if (supplier.rating !== undefined) {
+                validateRating(supplier.rating, "Supplier rating");
+            }
+        }),
+    );
+
+    service.before(
         "UPDATE",
         "Suppliers",
         asyncHandler(async (req) => {
             const supplier = req.data as UpdateSupplierInput;
-            validateRating(supplier.rating, "Supplier rating");
+            if (supplier.rating !== undefined) {
+                validateRating(supplier.rating, "Supplier rating");
+            }
+        }),
+    );
+
+    service.before(
+        "DELETE",
+        "Suppliers",
+        asyncHandler(async (req) => {
+            const supplierId = req.params[0] as number;
+            await validateSupplierId(service, supplierId);
         }),
     );
 
@@ -253,7 +300,7 @@ module.exports = cds.service.impl(async function (service: Service) {
                 );
 
             // Create new review
-            const review = await service.create(ProductReviews, {
+            await service.create(ProductReviews, {
                 product_ID: productID,
                 rating,
                 comment,
