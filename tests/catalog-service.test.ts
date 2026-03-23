@@ -5,7 +5,11 @@
  * NOTE: These tests validate the actual CAP service implementation in srv/CatalogService.ts
  */
 
-import type { Product, Supplier, ProductReview } from "../types/entities";
+import type {
+    Product,
+    Supplier,
+    ProductReview,
+} from "../lib/validation/schemas";
 
 // Mock the cds module - required for service initialization
 jest.mock("@sap/cds", () => ({

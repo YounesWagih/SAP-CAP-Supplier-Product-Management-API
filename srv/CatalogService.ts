@@ -1,37 +1,28 @@
 // @ts-ignore - SAP CAP types
 import cds, { Service, SELECT } from "@sap/cds";
 
-import { ValidationError, NotFoundError, ApiError } from "../lib/errors";
+import { NotFoundError, ApiError } from "../lib/errors";
 import asyncHandler from "../lib/utils/asyncHandler";
+import { validate } from "../lib/validation";
+import {
+    CreateProductSchema,
+    UpdateProductSchema,
+    CreateSupplierSchema,
+    UpdateSupplierSchema,
+    CreateProductReviewSchema,
+    UpdateProductReviewSchema,
+} from "../lib/validation/schemas";
 import type {
     CreateProductInput,
     UpdateProductInput,
     CreateProductReviewInput,
     UpdateProductReviewInput,
     UpdateSupplierInput,
-} from "../types/entities";
+} from "../lib/validation/schemas";
 import type { FakeStoreProduct } from "../types/external";
 // =========================================================================
-// Validation Helper Functions
+// Async ID Validation Helper Functions (for database existence checks)
 // =========================================================================
-function validatePrice(price: number | undefined): void {
-    if (price === undefined || price === null) {
-        throw new ValidationError("Price is required");
-    }
-    if (price <= 0) {
-        throw new ValidationError("Price must be greater than 0");
-    }
-}
-
-function validateRating(
-    rating: number | undefined,
-    fieldName: string = "Rating",
-): void {
-    if (rating !== undefined && (rating < 1 || rating > 5)) {
-        throw new ValidationError(`${fieldName} must be between 1 and 5`);
-    }
-}
-
 async function validateProductId(
     service: Service,
     productId: number | undefined,
@@ -129,13 +120,6 @@ interface SubmitReviewResult {
     averageRating: number;
 }
 
-interface RequestData {
-    productID: number;
-    rating: number;
-    comment?: string;
-    reviewer?: string;
-}
-
 // =========================================================================
 // Service Implementation
 // =========================================================================
@@ -153,10 +137,8 @@ module.exports = cds.service.impl(async function (service: Service) {
             const productID = req.params[0] as number;
             if (productID) await validateProductId(service, productID);
 
-            // Price & supplier validation
-            validatePrice(product.price);
-            if (!product.supplier_ID)
-                throw new ValidationError("Supplier ID is required");
+            validate(product, CreateProductSchema);
+
             await validateSupplierId(service, product.supplier_ID);
 
             // External API rating
@@ -167,7 +149,10 @@ module.exports = cds.service.impl(async function (service: Service) {
                         p.category.toLowerCase() ===
                         product.category?.toLowerCase(),
                 );
-                if (matching) product.externalRating = matching.rating.rate;
+                if (matching)
+                    (
+                        product as unknown as Record<string, unknown>
+                    ).externalRating = matching.rating.rate;
             }
         }),
     );
@@ -177,7 +162,7 @@ module.exports = cds.service.impl(async function (service: Service) {
         "Products",
         asyncHandler(async (req) => {
             const data = req.data as UpdateProductInput;
-            if (data.price !== undefined) validatePrice(data.price);
+            validate(data, UpdateProductSchema);
             if (data.supplier_ID !== undefined)
                 await validateSupplierId(service, data.supplier_ID);
         }),
@@ -203,7 +188,7 @@ module.exports = cds.service.impl(async function (service: Service) {
             if (reviewID) await validateReviewExists(service, reviewID);
 
             const review = req.data as CreateProductReviewInput;
-            validateRating(review.rating, "Rating");
+            validate(review, CreateProductReviewSchema);
         }),
     );
 
@@ -212,7 +197,7 @@ module.exports = cds.service.impl(async function (service: Service) {
         "ProductReviews",
         asyncHandler(async (req) => {
             const review = req.data as UpdateProductReviewInput;
-            validateRating(review.rating, "Rating");
+            validate(review, UpdateProductReviewSchema);
         }),
     );
 
@@ -253,9 +238,7 @@ module.exports = cds.service.impl(async function (service: Service) {
             if (supplierId) await validateSupplierId(service, supplierId);
 
             const supplier = req.data;
-            if (supplier.rating !== undefined) {
-                validateRating(supplier.rating, "Supplier rating");
-            }
+            validate(supplier, CreateSupplierSchema);
         }),
     );
 
@@ -264,9 +247,7 @@ module.exports = cds.service.impl(async function (service: Service) {
         "Suppliers",
         asyncHandler(async (req) => {
             const supplier = req.data as UpdateSupplierInput;
-            if (supplier.rating !== undefined) {
-                validateRating(supplier.rating, "Supplier rating");
-            }
+            validate(supplier, UpdateSupplierSchema);
         }),
     );
 
@@ -285,10 +266,11 @@ module.exports = cds.service.impl(async function (service: Service) {
     service.on(
         "submitReview",
         asyncHandler(async (req): Promise<SubmitReviewResult> => {
-            const { productID, rating, comment, reviewer } =
-                req.data as RequestData;
+            const requestData = req.data;
 
-            validateRating(rating, "Rating");
+            validate(requestData, CreateProductReviewSchema);
+
+            const { productID, rating, comment, reviewer } = requestData;
 
             const ProductReviews = service.entities.ProductReviews;
             const Products = service.entities.Products;
