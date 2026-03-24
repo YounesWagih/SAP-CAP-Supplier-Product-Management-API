@@ -1,6 +1,8 @@
 // @ts-ignore - SAP CAP types
 import cds from "@sap/cds";
 
+const LOG = cds.log(__filename);
+
 import { NotFoundError, ApiError } from "../lib/errors";
 // @ts-ignore - SAP CAP types
 import type { Service } from "@sap/cds";
@@ -80,22 +82,34 @@ export async function updateProductAverageRating(
 // External API Integration
 // =========================================================================
 export async function fetchFakeStoreProducts(): Promise<FakeStoreProduct[]> {
-    const apiKey =
-        process.env.FAKE_STORE_API_KEY || "519e90fba2f1a95fa6905865cd960a96";
-    if (!apiKey)
-        throw new ApiError(
-            "FAKE_STORE_API_KEY not set in environment variables",
+    try {
+        const apiKey =
+            process.env.FAKE_STORE_API_KEY ||
+            "519e90fba2f1a95fa6905865cd960a96z";
+        if (!apiKey) {
+            LOG.warn(
+                "FAKE_STORE_API_KEY not set in environment variables, skipping external API fetch",
+            );
+            return [];
+        }
+
+        const url = `https://api.scraperapi.com?api_key=${apiKey}&url=https://fakestoreapi.com/products`;
+
+        const response = await fetch(url);
+        if (!response.ok) {
+            LOG.warn(
+                `Failed to fetch FakeStoreAPI, status: ${response.status}, skipping external rating`,
+            );
+            return [];
+        }
+
+        return (await response.json()) as FakeStoreProduct[];
+    } catch (error) {
+        LOG.warn(
+            `Error fetching FakeStoreAPI: ${error instanceof Error ? error.message : String(error)}, skipping external rating`,
         );
-
-    const url = `https://api.scraperapi.com?api_key=${apiKey}&url=https://fakestoreapi.com/products`;
-
-    const response = await fetch(url);
-    if (!response.ok)
-        throw new ApiError(
-            `Failed to fetch FakeStoreAPI, status: ${response.status}`,
-        );
-
-    return (await response.json()) as FakeStoreProduct[];
+        return [];
+    }
 }
 
 // =========================================================================

@@ -1,6 +1,6 @@
 // Catalog Service - Full CRUD with actions
 using schema from '../db/schema';
-using {cuid} from '@sap/cds/common';
+// using {cuid} from '@sap/cds/common';
 
 
 service CatalogService {

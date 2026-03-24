@@ -1,7 +1,7 @@
 // @ts-ignore - SAP CAP types
-import cds, { Service, SELECT } from "@sap/cds";
+import cds, { Service } from "@sap/cds";
 
-import { NotFoundError, ApiError } from "../lib/errors";
+import { NotFoundError } from "../lib/errors";
 import asyncHandler from "../lib/utils/asyncHandler";
 import { validate } from "../lib/validation";
 import {
@@ -13,15 +13,7 @@ import {
     UpdateProductReviewSchema,
     SubmitReviewSchema,
 } from "../lib/validation/schemas";
-import type {
-    CreateProductInput,
-    UpdateProductInput,
-    CreateProductReviewInput,
-    UpdateProductReviewInput,
-    UpdateSupplierInput,
-    SubmitReviewInput,
-} from "../lib/validation/schemas";
-import type { FakeStoreProduct } from "../types/external";
+import type { CreateProductReviewInput } from "../lib/validation/schemas";
 import {
     validateProductId,
     validateSupplierId,
@@ -31,9 +23,6 @@ import {
     SubmitReviewResult,
 } from "./CatalogService.helpers";
 
-// =========================================================================
-// Service Implementation
-// =========================================================================
 module.exports = cds.service.impl(async function (service: Service) {
     // -------------------------------
     // Product Handlers
@@ -82,7 +71,7 @@ module.exports = cds.service.impl(async function (service: Service) {
         "DELETE",
         "Products",
         asyncHandler(async (req) => {
-            const productId = req.params[0] as number;
+            const productId = req.params[0];
             await validateProductId(service, productId);
         }),
     );
@@ -96,10 +85,8 @@ module.exports = cds.service.impl(async function (service: Service) {
         asyncHandler(async (req) => {
             validate(req.data, CreateProductReviewSchema);
 
-            const reviewID = req.params[0] as number;
+            const reviewID = req.params[0];
             if (reviewID) await validateReviewExists(service, reviewID);
-
-            const review = req.data as CreateProductReviewInput;
         }),
     );
 
@@ -108,11 +95,9 @@ module.exports = cds.service.impl(async function (service: Service) {
         "ProductReviews",
         asyncHandler(async (req) => {
             validate(req.data, UpdateProductReviewSchema);
-            const review = req.data as UpdateProductReviewInput;
         }),
     );
 
-    // afterUpdate & afterDelete now fetch product_ID correctly
     service.after(
         ["UPDATE", "DELETE"],
         "ProductReviews",
@@ -133,7 +118,7 @@ module.exports = cds.service.impl(async function (service: Service) {
         "DELETE",
         "ProductReviews",
         asyncHandler(async (req) => {
-            const reviewID = req.params[0] as number;
+            const reviewID = req.params[0];
             await validateReviewExists(service, reviewID);
         }),
     );
@@ -147,10 +132,8 @@ module.exports = cds.service.impl(async function (service: Service) {
         asyncHandler(async (req) => {
             validate(req.data, CreateSupplierSchema);
 
-            const supplierId = req.params[0] as number;
+            const supplierId = req.params[0];
             if (supplierId) await validateSupplierId(service, supplierId);
-
-            const supplier = req.data;
         }),
     );
 
@@ -159,7 +142,6 @@ module.exports = cds.service.impl(async function (service: Service) {
         "Suppliers",
         asyncHandler(async (req) => {
             validate(req.data, UpdateSupplierSchema);
-            const supplier = req.data as UpdateSupplierInput;
         }),
     );
 
@@ -167,7 +149,7 @@ module.exports = cds.service.impl(async function (service: Service) {
         "DELETE",
         "Suppliers",
         asyncHandler(async (req) => {
-            const supplierId = req.params[0] as number;
+            const supplierId = req.params[0];
             await validateSupplierId(service, supplierId);
         }),
     );

@@ -2,15 +2,17 @@
 namespace schema;
 
 entity Suppliers {
-  key ID     : UUID ;
-      name   : String(100);
-      email  : String(255);
+  key ID       : UUID;
+      name     : String(100);
+      email    : String(255);
 
       @assert.range: [
         1,
         5
       ]
-      rating : Integer;
+      rating   : Integer;
+      products : Association to many Products
+                   on products.supplier = $self
 }
 
 entity Products {
@@ -27,6 +29,8 @@ entity Products {
       externalRating : Decimal(3, 2);
       averageRating  : Decimal(3, 2);
       supplier       : Association to Suppliers;
+      reviews        : Composition of many ProductReviews
+                         on reviews.product = $self;
 }
 
 entity ProductReviews {

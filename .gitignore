@@ -9,6 +9,7 @@ build/
 # CDS specific
 *.cds.gen.*
 .db/
+db.sqlite
 
 # IDE
 .vscode/
