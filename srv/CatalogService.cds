@@ -1,34 +1,15 @@
 // Catalog Service - Full CRUD with actions
-using from '../db/schema';
+using schema from '../db/schema';
+using {cuid} from '@sap/cds/common';
+
 
 service CatalogService {
-  entity Suppliers {
-    key ID     : Integer;
-        name   : String(100);
-        email  : String(255);
-        rating : Integer;
-  }
-
-  entity Products {
-    key ID             : Integer;
-        name           : String(100);
-        price          : Decimal(10, 2);
-        category       : String(50);
-        externalRating : Decimal(3, 2);
-        averageRating  : Decimal(3, 2);
-        supplier       : Association to Suppliers;
-  }
-
-  entity ProductReviews {
-    key ID       : Integer;
-        product  : Association to Products;
-        rating   : Integer;
-        comment  : String(500);
-        reviewer : String(100);
-  }
+  entity Suppliers      as projection on schema.Suppliers;
+  entity Products       as projection on schema.Products;
+  entity ProductReviews as projection on schema.ProductReviews;
 
   // Custom action to submit a review
-  action submitReview(productID: Integer,
+  action submitReview(productID: UUID,
                       rating: Integer,
                       comment: String(500),
                       reviewer: String(100)) returns {
@@ -36,4 +17,3 @@ service CatalogService {
     averageRating : Decimal(3, 2);
   };
 }
-

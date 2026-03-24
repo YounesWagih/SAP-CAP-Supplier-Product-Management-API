@@ -1,7 +1,8 @@
 // Schema with validations for SAP CAP project
+namespace schema;
 
 entity Suppliers {
-  key ID     : Integer ;
+  key ID     : UUID ;
       name   : String(100);
       email  : String(255);
 
@@ -13,7 +14,7 @@ entity Suppliers {
 }
 
 entity Products {
-  key ID             : Integer;
+  key ID             : UUID;
       name           : String(100);
 
       @assert.notNull
@@ -29,7 +30,7 @@ entity Products {
 }
 
 entity ProductReviews {
-  key ID       : Integer;
+  key ID       : UUID;
       product  : Association to Products;
 
       @assert.range: [

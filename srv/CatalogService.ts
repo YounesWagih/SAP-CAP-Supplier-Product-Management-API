@@ -42,14 +42,12 @@ module.exports = cds.service.impl(async function (service: Service) {
         "CREATE",
         "Products",
         asyncHandler(async (req) => {
-            req.data = validate(req.data, CreateProductSchema);
-
-            const product = req.data as CreateProductInput;
+            validate(req.data, CreateProductSchema);
+            const product = req.data;
 
             // prevent wrong ID updates creation
-            const productID = req.params[0] as number;
+            const productID = req.params[0];
             if (productID) await validateProductId(service, productID);
-
             await validateSupplierId(service, product.supplier_ID);
 
             // External API rating
@@ -72,9 +70,9 @@ module.exports = cds.service.impl(async function (service: Service) {
         "UPDATE",
         "Products",
         asyncHandler(async (req) => {
-            req.data = validate(req.data, UpdateProductSchema);
+            validate(req.data, UpdateProductSchema);
 
-            const data = req.data as UpdateProductInput;
+            const data = req.data;
             if (data.supplier_ID !== undefined)
                 await validateSupplierId(service, data.supplier_ID);
         }),
@@ -96,7 +94,7 @@ module.exports = cds.service.impl(async function (service: Service) {
         "CREATE",
         "ProductReviews",
         asyncHandler(async (req) => {
-            req.data = validate(req.data, CreateProductReviewSchema);
+            validate(req.data, CreateProductReviewSchema);
 
             const reviewID = req.params[0] as number;
             if (reviewID) await validateReviewExists(service, reviewID);
@@ -109,7 +107,7 @@ module.exports = cds.service.impl(async function (service: Service) {
         "UPDATE",
         "ProductReviews",
         asyncHandler(async (req) => {
-            req.data = validate(req.data, UpdateProductReviewSchema);
+            validate(req.data, UpdateProductReviewSchema);
             const review = req.data as UpdateProductReviewInput;
         }),
     );
@@ -147,8 +145,7 @@ module.exports = cds.service.impl(async function (service: Service) {
         "CREATE",
         "Suppliers",
         asyncHandler(async (req) => {
-            req.data = validate(req.data, CreateSupplierSchema);
-            console.log(req.data);
+            validate(req.data, CreateSupplierSchema);
 
             const supplierId = req.params[0] as number;
             if (supplierId) await validateSupplierId(service, supplierId);
@@ -161,7 +158,7 @@ module.exports = cds.service.impl(async function (service: Service) {
         "UPDATE",
         "Suppliers",
         asyncHandler(async (req) => {
-            req.data = validate(req.data, UpdateSupplierSchema);
+            validate(req.data, UpdateSupplierSchema);
             const supplier = req.data as UpdateSupplierInput;
         }),
     );
@@ -181,7 +178,7 @@ module.exports = cds.service.impl(async function (service: Service) {
     service.on(
         "submitReview",
         asyncHandler(async (req): Promise<SubmitReviewResult> => {
-            req.data = validate(req.data, SubmitReviewSchema);
+            validate(req.data, SubmitReviewSchema);
 
             const requestData = req.data;
 

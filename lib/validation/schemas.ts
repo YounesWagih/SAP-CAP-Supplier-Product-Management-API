@@ -1,7 +1,7 @@
 import { z } from "zod";
 
 // --- Primitives ---
-const id = z.number().int().positive();
+const id = z.uuid();
 const rating = z.number().int().min(1).max(5);
 
 // --- 1. Entity Schemas (Source of Truth) ---
