@@ -22,6 +22,8 @@
 ---
 
 ## Problem & Solution
+![proxy](https://github.com/user-attachments/assets/77b27091-719e-4fdb-88e0-595b0d723270)
+
 
 ### Problem
 
@@ -163,6 +165,7 @@ cap-task/
 ---
 
 ## Architecture Diagram
+<img width="1408" height="768" alt="architecture" src="https://github.com/user-attachments/assets/55d880f6-2d86-46d2-8d6f-424d5455989a" />
 
 
 
