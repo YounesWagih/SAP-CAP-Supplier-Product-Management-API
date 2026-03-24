@@ -1,16 +1,67 @@
 # SAP CAP Supplier Product Management API
 
-A Cloud Application Programming (CAP) based REST API for managing suppliers, products, and product reviews.
+A Cloud Application Programming (CAP) based REST API for managing suppliers, products, and product reviews with comprehensive validation and error handling.
 
 ## Overview
 
 This project implements a comprehensive CRUD API for a supplier product catalog system with:
 
 - **Suppliers Management**: Create, read, update, and delete suppliers
-- **Products Management**: Full CRUD with external API integration
+- **Products Management**: Full CRUD with external API integration for ratings
 - **Product Reviews**: Rating system with automatic average calculation
 - **Custom Actions**: Submit review action that updates product ratings
-- **Input Validations**: Price, rating, and field length validations
+- **Input Validations**: Zod-based validation for all inputs
+- **Error Handling**: Custom error classes with proper HTTP status codes
+
+## Architecture Diagram
+
+```mermaid
+flowchart TB
+    subgraph Client["Client Applications"]
+        REST[REST API Client]
+        OData[OData Client]
+    end
+
+    subgraph CAP["SAP CAP Framework"]
+        ODataLayer[OData Layer]
+        
+        subgraph Service["Catalog Service"]
+            Handlers[Event Handlers]
+            Actions[Custom Actions]
+            Validations[Zod Validation]
+        end
+        
+        subgraph ErrorHandling["Error Handling"]
+            AsyncHandler[asyncHandler]
+            ErrorClasses[Error Classes]
+        end
+    end
+
+    subgraph BusinessLogic["Business Logic"]
+        Helpers[Helper Functions]
+        ExternalAPI[External API]
+    end
+
+    subgraph Data["Data Layer"]
+        SQLite[(SQLite DB)]
+        Schemas[CDS Schemas]
+    end
+
+    REST --> ODataLayer
+    OData --> ODataLayer
+    ODataLayer --> Handlers
+    ODataLayer --> Actions
+    
+    Handlers --> Validations
+    Validations --> ErrorClasses
+    AsyncHandler --> ErrorClasses
+    
+    Helpers --> ExternalAPI
+    
+    Schemas --> SQLite
+    Handlers --> Helpers
+    Helpers --> Schemas
+```
 
 ## Project Structure
 
@@ -20,85 +71,90 @@ cap-task/
 │   └── schema.cds              # Database schema definitions
 ├── srv/
 │   ├── CatalogService.cds      # Service definitions
-│   └── CatalogService.ts       # Main service handlers (TypeScript)
+│   ├── CatalogService.ts       # Main service handlers (TypeScript)
+│   └── CatalogService.helpers.ts # Helper functions
+├── lib/
+│   ├── errors/                # Custom error classes
+│   │   ├── index.ts
+│   │   ├── AppError.ts
+│   │   ├── ValidationError.ts
+│   │   ├── NotFoundError.ts
+│   │   └── ApiError.ts
+│   ├── utils/                 # Utility functions
+│   │   └── asyncHandler.ts    # Centralized error handling wrapper
+│   └── validation/            # Validation schemas
+│       ├── index.ts
+│       └── schemas.ts         # Zod validation schemas
 ├── types/
 │   ├── entities.d.ts           # Entity type definitions
-│   ├── service.d.ts            # Service-related types
-│   ├── validation.d.ts         # Validation function types
+│   ├── service.d.ts           # Service-related types
+│   ├── validation.d.ts        # Validation function types
 │   └── external.d.ts           # External API types
 ├── tests/
-│   ├── catalog-service.test.ts # Handler unit tests (TypeScript)
-│   └── validations.test.ts     # Validation tests (TypeScript)
+│   ├── catalog-service.test.ts # Handler unit tests
+│   ├── validations.test.ts     # Validation tests
+│   └── errors.test.ts          # Error handling tests
 ├── tsconfig.json               # TypeScript configuration
 ├── tsconfig.build.json         # TypeScript build configuration
-├── jest.config.js              # Jest configuration
+├── jest.config.ts              # Jest configuration
 ├── package.json                # Dependencies and scripts
 └── README.md                   # This file
 ```
 
-## TypeScript Setup
+## Technology Stack
 
-This project has been migrated to TypeScript for improved type safety and developer experience.
+- **Framework**: SAP Cloud Application Programming (CAP) v8
+- **Language**: TypeScript
+- **Validation**: Zod v4
+- **Database**: SQLite (development)
+- **Testing**: Jest with ts-jest
+- **HTTP Server**: Express (via CAP)
 
-### Prerequisites
+## Prerequisites
 
 - Node.js (v18 or higher recommended)
 - npm (comes with Node.js)
 
-### TypeScript Configuration
+## Installation and Local Setup
 
-The project uses two TypeScript configuration files:
+### 1. Install Dependencies
 
-1. **tsconfig.json** - Development configuration with strict type checking
-2. **tsconfig.build.json** - Build configuration for production (excludes tests)
+```bash
+npm install
+```
 
-Key TypeScript settings:
-- `target`: ES2020
-- `module`: CommonJS
-- `strict`: true (strict type checking enabled)
-- `esModuleInterop`: true
-- `skipLibCheck`: true
+This will install:
+- `@sap/cds` - SAP CAP framework
+- `@sap/cds-sqlite` - SQLite database adapter
+- `sqlite3` - SQLite driver
+- `express` - HTTP server
+- `zod` - Schema validation
+- `typescript` - TypeScript compiler
+- `@types/node` - Node.js type definitions
+- `@types/express` - Express type definitions
+- `jest` - Testing framework
+- `@types/jest` - Jest type definitions
 
-### Installation
+### 2. Environment Variables (Optional)
 
-1. **Install dependencies**:
+Create a `.env` file in the project root to configure the external API:
 
-   ```bash
-   npm install
-   ```
+```bash
+# Optional: API key for external rating service
+FAKE_STORE_API_KEY=your_scraperapi_key_here
+```
 
-   This will install:
-   - `@sap/cds` - SAP CAP framework
-   - `@sap/cds-sqlite` - SQLite database adapter
-   - `sqlite3` - SQLite driver
-   - `express` - HTTP server
-   - `typescript` - TypeScript compiler
-   - `@types/node` - Node.js type definitions
-   - `@types/express` - Express type definitions
-   - `jest` - Testing framework
-   - `@types/jest` - Jest type definitions
+If not provided, the system will skip external rating fetching gracefully.
 
-2. **Initialize the database**:
+### 3. Initialize the Database
 
-   ```bash
-   npx cds deploy
-   ```
+```bash
+npx cds deploy
+```
 
-   This creates a SQLite database file (`db.sqlite`) with the schema.
+This creates a SQLite database file (`db.sqlite`) with the schema.
 
-## NPM Scripts
-
-The following npm scripts are available:
-
-| Script | Description |
-|--------|-------------|
-| `npm run build` | Compile TypeScript to JavaScript in `dist/` directory |
-| `npm run watch` | Start CAP server with auto-reload on file changes |
-| `npm start` | Start the CAP server at `http://localhost:4004` |
-| `npm test` | Run all Jest unit tests |
-| `npm run clean` | Remove compiled JavaScript from `dist/` directory |
-
-### Running the Project
+### 4. Run the Project
 
 #### Development Mode (Auto-reload)
 
@@ -115,7 +171,7 @@ npm run build
 npm start
 ```
 
-This compiles TypeScript and starts the CAP server at `http://localhost:4004`.
+The server runs at `http://localhost:4004`.
 
 #### Running Tests
 
@@ -123,51 +179,98 @@ This compiles TypeScript and starts the CAP server at `http://localhost:4004`.
 npm test
 ```
 
-This runs all Jest unit tests. Tests are written in TypeScript and run directly using ts-jest.
+## NPM Scripts
 
-## Type Definitions
+| Script | Description |
+|--------|-------------|
+| `npm run build` | Compile TypeScript to JavaScript in `dist/` directory |
+| `npm run watch` | Start CAP server with auto-reload on file changes |
+| `npm start` | Start the CAP server at `http://localhost:4004` |
+| `npm test` | Run all Jest unit tests |
+| `npm run clean` | Remove compiled JavaScript from `dist/` directory |
+| `npm run deploy` | Initialize/reset the SQLite database |
 
-The project includes comprehensive TypeScript type definitions in the `types/` directory:
+## Validation (Zod Schemas)
 
-### types/entities.d.ts
+This project uses [Zod](https://github.com/colinhacks/zod) for runtime validation. All validation schemas are defined in [`lib/validation/schemas.ts`](lib/validation/schemas.ts).
 
-Defines interfaces for all CDS entities:
+### Schema Types
 
-- **Supplier**: ID, name, email, rating (1-5)
-- **Product**: ID, name, price, category, externalRating, averageRating, supplier association
-- **ProductReview**: ID, product_ID, rating (1-5), comment, reviewer
-- **CreateSupplierInput**: Input type for creating suppliers
-- **CreateProductInput**: Input type for creating products
-- **CreateProductReviewInput**: Input type for creating reviews
+| Schema | Description |
+|--------|-------------|
+| `SupplierSchema` | Base supplier validation |
+| `ProductSchema` | Base product validation |
+| `ProductReviewSchema` | Base review validation |
+| `CreateSupplierSchema` | Supplier creation (excludes ID) |
+| `CreateProductSchema` | Product creation (excludes auto-generated fields) |
+| `CreateProductReviewSchema` | Review creation (excludes ID) |
+| `UpdateSupplierSchema` | Partial supplier update |
+| `UpdateProductSchema` | Partial product update |
+| `UpdateProductReviewSchema` | Partial review update |
+| `SubmitReviewSchema` | Custom action input validation |
 
-### types/service.d.ts
+### TypeScript Type Inference
 
-Defines service-related types:
+Zod schemas automatically infer TypeScript types:
 
-- **CatalogServiceEntities**: Exposes all CDS entities through OData
-- **CatalogService**: Full CAP service definition
-- **CDSRequest/CDSResponse**: Extended Express request/response types
-- **SubmitReviewParams/Result**: Parameters and result for submitReview action
-- **ICatalogService**: Interface defining all service operations
+```typescript
+import { 
+  Supplier, 
+  Product, 
+  ProductReview,
+  CreateSupplierInput,
+  CreateProductInput
+} from "../lib/validation/schemas";
 
-### types/validation.d.ts
+// Types are automatically inferred from schemas
+const supplier: Supplier = { ... };
+const productInput: CreateProductInput = { ... };
+```
 
-Defines validation function types:
+## Error Handling
 
-- **ValidationError**: Field, message, code, value
-- **ValidationResult**: valid boolean and errors array
-- **SupplierValidationInput**: Input type for supplier validation
-- **ProductValidationInput**: Input type for product validation
-- **ProductReviewValidationInput**: Input type for review validation
+The project implements a custom error handling architecture with proper HTTP status codes.
 
-### types/external.d.ts
+### Error Classes
 
-Defines external API integration types:
+| Class | HTTP Status | Description |
+|-------|-------------|-------------|
+| `AppError` | - | Base error class with statusCode |
+| `ValidationError` | 400 | Bad request, validation failed |
+| `NotFoundError` | 404 | Resource not found |
+| `ApiError` | 500 | External API errors |
 
-- **FakeStoreProduct**: Product from FakeStore API
-- **FakeStoreRating**: Rating object from FakeStore API
-- **ExternalProduct**: Mapped product with externalRating
-- **ExternalApiResponse**: Generic API response wrapper
+All error classes are defined in [`lib/errors/`](lib/errors/).
+
+### Async Handler
+
+The [`lib/utils/asyncHandler.ts`](lib/utils/asyncHandler.ts) provides centralized error handling for all service handlers:
+
+```typescript
+import asyncHandler from "../lib/utils/asyncHandler";
+
+service.before("CREATE", "Products", asyncHandler(async (req) => {
+    // Handler logic
+    // Errors are automatically caught and handled
+}));
+```
+
+Features:
+- Catches both sync and async errors
+- Logs errors using `cds.log`
+- Uses `req.reject()` with appropriate status codes
+- Properly propagates custom error types
+
+### Error Response Format
+
+```json
+{
+  "error": {
+    "code": "400",
+    "message": "Price must be greater than 0"
+  }
+}
+```
 
 ## API Endpoints
 
@@ -182,10 +285,10 @@ http://localhost:4004/catalog
 | Method | Endpoint | Description |
 |--------|----------|-------------|
 | GET | `/Suppliers` | List all suppliers |
-| GET | `/Suppliers(1)` | Get supplier by ID |
+| GET | `/Suppliers(UUID)` | Get supplier by ID |
 | POST | `/Suppliers` | Create new supplier |
-| PATCH | `/Suppliers(1)` | Update supplier |
-| DELETE | `/Suppliers(1)` | Delete supplier |
+| PATCH | `/Suppliers(UUID)` | Update supplier |
+| DELETE | `/Suppliers(UUID)` | Delete supplier |
 
 **Sample Request - Create Supplier:**
 
@@ -193,7 +296,6 @@ http://localhost:4004/catalog
 curl -X POST http://localhost:4004/catalog/Suppliers \
   -H "Content-Type: application/json" \
   -d '{
-    "ID": 1,
     "name": "Tech Supplies Inc",
     "email": "contact@techsupplies.com",
     "rating": 4
@@ -205,7 +307,7 @@ curl -X POST http://localhost:4004/catalog/Suppliers \
 ```json
 {
   "@odata.context": "$metadata#Suppliers/$entity",
-  "ID": 1,
+  "ID": "550e8400-e29b-41d4-a716-446655440000",
   "name": "Tech Supplies Inc",
   "email": "contact@techsupplies.com",
   "rating": 4
@@ -217,10 +319,10 @@ curl -X POST http://localhost:4004/catalog/Suppliers \
 | Method | Endpoint | Description |
 |--------|----------|-------------|
 | GET | `/Products` | List all products |
-| GET | `/Products(1)` | Get product by ID |
+| GET | `/Products(UUID)` | Get product by ID |
 | POST | `/Products` | Create new product |
-| PATCH | `/Products(1)` | Update product |
-| DELETE | `/Products(1)` | Delete product |
+| PATCH | `/Products(UUID)` | Update product |
+| DELETE | `/Products(UUID)` | Delete product |
 
 **Sample Request - Create Product:**
 
@@ -228,11 +330,10 @@ curl -X POST http://localhost:4004/catalog/Suppliers \
 curl -X POST http://localhost:4004/catalog/Products \
   -H "Content-Type: application/json" \
   -d '{
-    "ID": 1,
     "name": "Wireless Mouse",
     "price": 29.99,
     "category": "electronics",
-    "supplier_ID": 1
+    "supplier_ID": "550e8400-e29b-41d4-a716-446655440000"
   }'
 ```
 
@@ -241,27 +342,27 @@ curl -X POST http://localhost:4004/catalog/Products \
 ```json
 {
   "@odata.context": "$metadata#Products/$entity",
-  "ID": 1,
+  "ID": "660e8400-e29b-41d4-a716-446655440001",
   "name": "Wireless Mouse",
   "price": 29.99,
   "category": "electronics",
   "externalRating": 4.5,
   "averageRating": 0,
-  "supplier_ID": 1
+  "supplier_ID": "550e8400-e29b-41d4-a716-446655440000"
 }
 ```
 
-**Note:** When creating a product with a category, the system automatically fetches an external rating from FakeStoreAPI based on the category.
+**Note:** When creating a product with a category, the system automatically fetches an external rating from FakeStoreAPI (via scraperapi) based on the category.
 
 ### Product Reviews
 
 | Method | Endpoint | Description |
 |--------|----------|-------------|
 | GET | `/ProductReviews` | List all reviews |
-| GET | `/ProductReviews(1)` | Get review by ID |
+| GET | `/ProductReviews(UUID)` | Get review by ID |
 | POST | `/ProductReviews` | Create new review |
-| PATCH | `/ProductReviews(1)` | Update review |
-| DELETE | `/ProductReviews(1)` | Delete review |
+| PATCH | `/ProductReviews(UUID)` | Update review |
+| DELETE | `/ProductReviews(UUID)` | Delete review |
 
 **Sample Request - Create Review:**
 
@@ -269,8 +370,7 @@ curl -X POST http://localhost:4004/catalog/Products \
 curl -X POST http://localhost:4004/catalog/ProductReviews \
   -H "Content-Type: application/json" \
   -d '{
-    "ID": 1,
-    "product_ID": 1,
+    "product_ID": "660e8400-e29b-41d4-a716-446655440001",
     "rating": 4,
     "comment": "Great product!",
     "reviewer": "John Doe"
@@ -289,7 +389,7 @@ Submit a review and automatically update the product's average rating.
 curl -X POST http://localhost:4004/catalog/submitReview \
   -H "Content-Type: application/json" \
   -d '{
-    "productID": 1,
+    "productID": "660e8400-e29b-41d4-a716-446655440001",
     "rating": 5,
     "comment": "Excellent product, highly recommend!",
     "reviewer": "Jane Smith"
@@ -313,29 +413,48 @@ curl -X POST http://localhost:4004/catalog/submitReview \
 
 **Trade-off:** SQLite is file-based and suitable for development. For production with multiple concurrent users, SAP HANA or another enterprise database would be preferred.
 
-### 2. External API Integration
+### 2. Zod for Validation
 
-**Decision:** Integrated with FakeStoreAPI (https://fakestoreapi.com/products) to fetch external ratings based on product category.
+**Decision:** Used Zod v4 for runtime schema validation instead of CAP's built-in validation annotations.
 
-**Trade-off:** 
-- Benefits: Provides realistic rating data without manual entry
-- Risk: External API dependency - if API is down, product creation continues without external rating (fail-safe approach)
+**Trade-off:**
+- **Pros:** TypeScript integration, schema composition, detailed error messages, reusable across the application
+- **Cons:** Additional dependency, validation logic separate from CDS model definitions
 
-### 3. Rating Validation Range
+### 3. Custom Error Classes
 
-**Decision:** All ratings (supplier, product, review) must be between 1-5.
+**Decision:** Created a custom error hierarchy (AppError → ValidationError, NotFoundError, ApiError).
 
-**Rationale:** Industry standard for 5-star rating systems. External ratings from FakeStoreAPI are also mapped to this scale.
+**Trade-off:**
+- **Pros:** Consistent error handling, proper HTTP status codes, detailed error information, centralized via asyncHandler
+- **Cons:** Additional code to maintain
 
-### 4. Average Rating Calculation
+### 4. External API Integration
+
+**Decision:** Integrated with FakeStoreAPI via scraperapi.com proxy to fetch external ratings based on product category.
+
+**Trade-off:**
+- **Benefits:** Provides realistic rating data without manual entry, bypasses CORS issues
+- **Risk:** External API dependency - if API is down, product creation continues without external rating (fail-safe approach)
+- **Requirement:** Optional API key for scraperapi
+
+### 5. UUID for IDs
+
+**Decision:** All entity IDs use UUID type.
+
+**Trade-off:**
+- **Pros:** Globally unique, no collision concerns, better for distributed systems
+- **Cons:** Less readable than simple integers, slightly larger storage
+
+### 6. Average Rating Calculation
 
 **Decision:** Calculated dynamically when a new review is submitted via the `submitReview` action.
 
-**Trade-off:** 
-- Pros: Always up-to-date, no need for scheduled jobs
-- Cons: Slight overhead on review creation (calculated on-the-fly)
+**Trade-off:**
+- **Pros:** Always up-to-date, no need for scheduled jobs
+- **Cons:** Slight overhead on review creation (calculated on-the-fly)
 
-### 5. Custom Action for Reviews
+### 7. Custom Action for Reviews
 
 **Decision:** Created a custom `submitReview` action instead of just using standard POST to ProductReviews.
 
@@ -345,19 +464,21 @@ curl -X POST http://localhost:4004/catalog/submitReview \
 
 1. **Database Initialization**: Database is initialized on first `cds deploy` or automatically on server start.
 
-2. **ID Generation**: IDs are assumed to be provided by the client. In production, you would typically use UUIDs or auto-increment.
+2. **ID Generation**: UUIDs are used for all entity IDs. The server generates UUIDs for new entities automatically.
 
 3. **Authentication**: Not implemented. In production, SAP CAP's built-in authentication and authorization should be configured.
 
-4. **External API**: FakeStoreAPI is used as a mock external rating service. In production, this would be replaced with actual supplier rating APIs.
+4. **External API**: FakeStoreAPI is used as a mock external rating service via scraperapi. In production, this would be replaced with actual supplier rating APIs.
 
 5. **CORS**: Default CAP CORS settings are assumed. For production, explicit CORS configuration may be needed.
 
 6. **Numeric Precision**: Using Decimal(10,2) for prices and Decimal(3,2) for ratings is sufficient for the use case.
 
-## Validations
+7. **Validation Library**: Zod v4 is used for validation, providing type-safe runtime validation separate from CDS model constraints.
 
-The following validations are enforced:
+## Validation Rules
+
+The following validations are enforced via Zod schemas:
 
 | Field | Entity | Validation Rule |
 |-------|--------|-----------------|
@@ -369,7 +490,7 @@ The following validations are enforced:
 | Rating | ProductReviews | Must be 1-5 |
 | Comment | ProductReviews | Max 500 characters |
 | Reviewer | ProductReviews | Max 100 characters |
-| Name | Suppliers | Max 100 characters |
+| Name | Suppliers | Min 1, Max 100 characters |
 | Email | Suppliers | Must be valid email format |
 
 ## Testing
@@ -385,11 +506,17 @@ The project includes comprehensive unit tests written in TypeScript:
   - Array handling
 
 - **Validation Tests** (`tests/validations.test.ts`):
+  - Zod schema validation
   - Price validation
   - Rating validation
   - Email validation
   - Field length validation
   - Edge cases
+
+- **Error Tests** (`tests/errors.test.ts`):
+  - Error class hierarchy
+  - HTTP status codes
+  - Error message formatting
 
 ### Running Tests
 
@@ -401,19 +528,19 @@ npm test
 npm test -- --coverage
 ```
 
-## Technology Stack
+## Environment Variables
 
-- **Framework**: SAP Cloud Application Programming (CAP) v8
-- **Language**: TypeScript/JavaScript
-- **Database**: SQLite (development)
-- **Testing**: Jest with ts-jest
-- **HTTP Server**: Express (via CAP)
+| Variable | Required | Description | Default |
+|----------|----------|-------------|---------|
+| `FAKE_STORE_API_KEY` | No | API key for scraperapi.com to fetch external ratings | Uses fallback value |
 
-## Error Handling
+When `FAKE_STORE_API_KEY` is not set, the system will log a warning and skip external rating fetching, allowing product creation to continue without interruption.
+
+## Error Handling Details
 
 All errors return appropriate HTTP status codes:
 
-- `400` - Bad Request (validation errors)
+- `400` - Bad Request (validation errors from Zod or business logic)
 - `404` - Not Found (entity doesn't exist)
 - `500` - Internal Server Error
 
@@ -428,6 +555,19 @@ Error responses include a message describing the issue:
 }
 ```
 
+### Custom Error Examples
+
+```typescript
+// Validation error
+throw new ValidationError("Price must be greater than 0"); // 400
+
+// Not found error
+throw new NotFoundError("Product with ID xyz does not exist"); // 404
+
+// API error
+throw new ApiError("Failed to fetch external rating"); // 500
+```
+
 ## Future Improvements
 
 1. **Authentication/Authorization**: Add user authentication and role-based access control
@@ -437,3 +577,5 @@ Error responses include a message describing the issue:
 5. **API Documentation**: Add Swagger/OpenAPI documentation
 6. **Database Migrations**: Implement proper database migration strategy for production
 7. **Unit of Work**: Implement transaction handling for complex operations
+8. **Rate Limiting**: Add rate limiting for external API calls
+9. **Health Checks**: Add health check endpoint for monitoring

@@ -3,7 +3,7 @@ import cds from "@sap/cds";
 
 const LOG = cds.log(__filename);
 
-import { NotFoundError, ApiError } from "../lib/errors";
+import { NotFoundError } from "../lib/errors";
 // @ts-ignore - SAP CAP types
 import type { Service } from "@sap/cds";
 import type { FakeStoreProduct } from "../types/external";
@@ -85,7 +85,7 @@ export async function fetchFakeStoreProducts(): Promise<FakeStoreProduct[]> {
     try {
         const apiKey =
             process.env.FAKE_STORE_API_KEY ||
-            "519e90fba2f1a95fa6905865cd960a96z";
+            "519e90fba2f1a95fa6905865cd960a96";
         if (!apiKey) {
             LOG.warn(
                 "FAKE_STORE_API_KEY not set in environment variables, skipping external API fetch",
