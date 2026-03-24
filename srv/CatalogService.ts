@@ -183,15 +183,14 @@ module.exports = cds.service.impl(async function (service: Service) {
                 reviewer,
             });
             // Update average rating incrementally using aggregation
-            await updateProductAverageRating(service, productID);
+            const averageRating = await updateProductAverageRating(
+                service,
+                productID,
+            );
 
-            // Get the updated product to return the averageRating
-            const productResult = await service
-                .read(Products)
-                .where({ ID: productID });
             return {
                 success: true,
-                averageRating: productResult[0]?.averageRating ?? null,
+                averageRating,
             };
         }),
     );

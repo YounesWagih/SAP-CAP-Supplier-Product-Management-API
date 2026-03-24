@@ -13,7 +13,7 @@ import type { FakeStoreProduct } from "../types/external";
 // =========================================================================
 export async function validateProductId(
     service: Service,
-    productId: number | undefined,
+    productId: string | undefined,
 ): Promise<void> {
     if (productId !== undefined) {
         const Products = service.entities.Products;
@@ -27,7 +27,7 @@ export async function validateProductId(
 
 export async function validateSupplierId(
     service: Service,
-    supplierId: number | undefined,
+    supplierId: string | undefined,
 ): Promise<void> {
     if (supplierId !== undefined) {
         const Suppliers = service.entities.Suppliers;
@@ -41,7 +41,7 @@ export async function validateSupplierId(
 
 export async function validateReviewExists(
     service: Service,
-    reviewId: number | undefined,
+    reviewId: string | undefined,
 ): Promise<void> {
     if (reviewId !== undefined) {
         const ProductReviews = service.entities.ProductReviews;
@@ -58,8 +58,8 @@ export async function validateReviewExists(
 // =========================================================================
 export async function updateProductAverageRating(
     service: Service,
-    productID: number,
-): Promise<void> {
+    productID: string,
+): Promise<number | null> {
     const Products = service.entities.Products;
     const ProductReviews = service.entities.ProductReviews;
     // Calculate average using aggregation instead of reading all rows
@@ -76,6 +76,8 @@ export async function updateProductAverageRating(
         .update(Products)
         .where({ ID: productID })
         .set({ averageRating });
+
+    return averageRating;
 }
 
 // =========================================================================
@@ -117,5 +119,5 @@ export async function fetchFakeStoreProducts(): Promise<FakeStoreProduct[]> {
 // =========================================================================
 export interface SubmitReviewResult {
     success: boolean;
-    averageRating: number;
+    averageRating: number | null;
 }
