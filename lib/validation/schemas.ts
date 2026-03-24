@@ -8,7 +8,10 @@ const rating = z.number().int().min(1).max(5);
 
 export const SupplierSchema = z.object({
     ID: id,
-    name: z.string().min(1, "Supplier name is required"),
+    name: z
+        .string()
+        .min(1, "Supplier name is required")
+        .max(100, "Supplier name must be at most 100 characters"),
     email: z.string().email("Invalid email format"),
     rating: rating.optional(),
 });
@@ -17,9 +20,20 @@ export const ProductSchema = z.object({
     ID: id,
     name: z.string().min(1, "Product name is required"),
     price: z.number().positive("Price must be greater than 0"),
-    category: z.string().optional(),
-    externalRating: z.number().optional(),
-    averageRating: z.number().optional(),
+    category: z
+        .string()
+        .max(50, "Category must be at most 50 characters")
+        .optional(),
+    externalRating: z
+        .number()
+        .min(0)
+        .max(5, "External rating must be between 0 and 5")
+        .optional(),
+    averageRating: z
+        .number()
+        .min(0)
+        .max(5, "Average rating must be between 0 and 5")
+        .optional(),
     supplier_ID: id, // Flat ID for input/validation
     supplier: z.union([z.lazy(() => SupplierSchema), id]).optional(),
 });
@@ -28,8 +42,14 @@ export const ProductReviewSchema = z.object({
     ID: id,
     product_ID: id,
     rating: rating,
-    comment: z.string().optional(),
-    reviewer: z.string().optional(),
+    comment: z
+        .string()
+        .max(500, "Comment must be at most 500 characters")
+        .optional(),
+    reviewer: z
+        .string()
+        .max(100, "Reviewer name must be at most 100 characters")
+        .optional(),
 });
 
 // --- 2. Derived Validation Schemas ---
