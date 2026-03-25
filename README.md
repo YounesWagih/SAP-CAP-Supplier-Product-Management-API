@@ -22,7 +22,8 @@
 ---
 
 ## Problem & Solution
-![proxy](https://github.com/user-attachments/assets/77b27091-719e-4fdb-88e0-595b0d723270)
+<img width="1264" height="506" alt="proxy" src="https://github.com/user-attachments/assets/b4143979-0202-4d90-b494-a8ab145e16a8" />
+
 
 
 ### Problem
